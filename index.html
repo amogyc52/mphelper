@@ -338,7 +338,7 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
   </div>
 </section>
 
-<footer>Хелпер-перестрелка · Rodina RP · Судья: <span id="footJudge"></span> · версия 7 (завершение турнира)</footer>
+<footer>Хелпер-перестрелка · Rodina RP · Судья: <span id="footJudge"></span> · версия 8 (диагностика связи)</footer>
 </div>
 
 <!-- Модалка жеребьёвки -->
@@ -976,8 +976,9 @@ function netRestart() {
 function startHost() {
   const p = net.peer = new Peer(ROOM_ID, PEER_OPTS);
   p.on('open', () => { net.ok = true; updateNetChip(); });
+  p.on('close', () => setNet('📡 Соединение с брокером закрыто — переподключаюсь…', 'bad'));
   p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
-  p.on('error', e => setNet(e.type === 'unavailable-id' ? '📡 Комната занята: судья уже открыт в другой вкладке (или сгенерируйте новый ID комнаты в панели судьи)' : '📡 Ошибка P2P: ' + e.type, 'bad'));
+  p.on('error', e => setNet(e.type === 'unavailable-id' ? '📡 Комната занята: судья уже открыт в другой вкладке (или сгенерируйте новый ID комнаты в панели судьи)' : '📡 Ошибка P2P у судьи: ' + e.type + ' (' + (e.message || '') + ')', 'bad'));
   p.on('connection', c => {
     c.on('open', () => { net.conns.push(c); c.send(snapshot()); updateNetChip(); });
     c.on('data', d => onPeerMsg(c, d));
@@ -1018,15 +1019,29 @@ function onPeerMsg(c, d) {   // сообщения игроков (провер�
 
 function startClient() {
   const p = net.peer = new Peer(PEER_OPTS);
-  const lost = () => { net.ok = false; setNet('📡 Судья не в сети (он должен войти в «🔐 Судья» на этом сайте) — переподключение каждые 5 с', 'bad'); renderControls(); clearTimeout(net.rt); net.rt = setTimeout(() => { if (!isJudge && !net.ok && !p.destroyed) connect(); }, 5000); };
-  const connect = () => {
-    const c = net.conn = p.connect(ROOM_ID, { serialization: 'json', reliable: true });
-    c.on('open', () => { net.ok = true; setNet('📡 Онлайн: ход турнира вживую', 'ok'); if (myNick) c.send({ t: 'hello', nick: myNick }); renderCurrent(); renderControls(); });
-    c.on('data', onPeerData); c.on('close', lost);
+  net.why = '';
+  // lost(текст) — показываем ТОЧНУЮ причину и пробуем снова каждые 5 секунд
+  const lost = why => {
+    net.ok = false; if (why) net.why = why; clearTimeout(net.ct);
+    setNet('📡 ' + (net.why || 'Нет связи с судьёй') + ' · повтор каждые 5 с', 'bad'); renderControls();
+    clearTimeout(net.rt); net.rt = setTimeout(() => { if (!isJudge && !net.ok && !p.destroyed) { if (p.disconnected) { try { p.reconnect(); } catch (e) {} } connect(); } }, 5000);
   };
+  const connect = () => {
+    if (!p.open) { lost('Нет связи с брокером PeerJS (0.peerjs.com заблокирован или недоступен в вашей сети?)'); return; }
+    setNet('📡 Ищу судью в комнате ' + ROOM_ID + '…', '');
+    const c = net.conn = p.connect(ROOM_ID, { serialization: 'json', reliable: true });
+    clearTimeout(net.ct);
+    net.ct = setTimeout(() => { if (!c.open) { lost('Судья найден, но P2P-соединение не установилось (сеть или файрвол блокирует WebRTC)'); try { c.close(); } catch (e) {} } }, 15000);
+    c.on('open', () => { clearTimeout(net.ct); net.ok = true; net.why = ''; setNet('📡 Онлайн: ход турнира вживую', 'ok'); if (myNick) c.send({ t: 'hello', nick: myNick }); renderCurrent(); renderControls(); });
+    c.on('data', onPeerData); c.on('close', () => lost()); c.on('error', e => lost('Ошибка соединения: ' + ((e && e.type) || e)));
+  };
+  setNet('📡 Подключаюсь к брокеру PeerJS…', '');
   p.on('open', connect);
   p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
-  p.on('error', e => { if (e.type === 'peer-unavailable' || e.type === 'network' || e.type === 'server-error') lost(); });
+  p.on('error', e => {
+    if (e.type === 'peer-unavailable') lost('Судья не в сети: комната ' + ROOM_ID + ' не найдена (судья должен войти в «🔐 Судья» с этим ID и держать вкладку открытой)');
+    else lost('Брокер PeerJS: ' + e.type + ' (' + (e.message || 'нет деталей') + ')');
+  });
 }
 function onPeerData(d) {
   if (!d) return;
@@ -1040,7 +1055,13 @@ function onPeerData(d) {
     if (d.T) { timerStop(); T.total = d.T.total; T.rem = d.T.rem; T.touched = d.T.touched; renderTimer(); if (d.T.running) timerStart(); }
   } else if (d.t === 'role') showMsg('myMsg', d.nick ? '✅ Вы в турнире как ' + d.nick + '. Ждите жеребьёвку.' : (d.why || 'Такого ника нет в списке участников.'), !!d.nick);
 }
-document.addEventListener('click', () => { if (!isJudge) ensureAudio(); });   // звук для зрителей (нужен жест)
+document.addEventListener('click', () => { if (!isJudge) ensureAudio(); });
+setInterval(() => {   // сторож судьи: если вкладка «заснула» и пропала из брокера — возвращаемся
+  if (!isJudge || !ROOM_ID || !net.peer) return;
+  if (net.peer.destroyed) { netRestart(); return; }
+  if (net.peer.disconnected) { setNet('📡 Потеряна связь с брокером, переподключаюсь…', 'bad'); try { net.peer.reconnect(); } catch (e) { netRestart(); } }
+}, 5000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && isJudge && ROOM_ID && (!net.peer || net.peer.destroyed || net.peer.disconnected)) netRestart(); });   // звук для зрителей (нужен жест)
 
 // ---------- рендер ----------
 // ---------- рендер: шапка, участники ----------
