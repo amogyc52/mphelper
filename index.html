@@ -138,12 +138,19 @@ ol.rules{padding-left:22px;margin:0} ol.rules li{margin:6px 0}
 table.jl{width:100%;border-collapse:collapse;font-size:14px}
 table.jl td{padding:5px 6px;border-bottom:1px solid var(--line)}
 footer{padding:30px 0 50px;color:var(--muted);font-size:13px;text-align:center}
+.hero{padding:56px 0 24px;text-align:center}.hero .lead{margin:0 auto}.chips{justify-content:center}
+.lobby{background:linear-gradient(160deg,#16301e,#131b15 55%,#2a1317);border-color:#2f5a3b;box-shadow:0 0 40px #2ee56f14}
+.lobby input{flex:1;min-width:160px;font-size:16px;padding:12px 14px}
+.btn.big{font-size:17px;padding:13px 26px;border-radius:12px;box-shadow:0 6px 24px #2ee56f33}
+.lobby .plist{margin-top:14px}.plist li.on{border-color:var(--acc)}.dot{color:var(--acc);font-size:12px;margin-left:8px}
+#myMatch{margin-top:10px;padding:12px;border-radius:10px;background:#0b110c;border:1px dashed var(--line)}#myMatch:empty{display:none}
+details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{transition:.2s}.card:hover{border-color:#34503b}
 </style>
 </head>
 <body>
 
 <nav><div class="wrap">
-  <a href="#top">🏁 Турнир</a><a href="#registration">Регистрация</a><a href="#bracket">Сетка</a>
+  <a href="#top">🏁 Турнир</a><a href="#join">Вход</a><a href="#registration">Регистрация</a><a href="#bracket">Сетка</a>
   <a href="#schedule">Расписание</a><a href="#rules">Правила</a><a href="#current">Текущий матч</a><a href="#results">Итоги</a>
   <span class="sp"></span>
   <a href="#" id="judgeBtn" style="border:1px solid var(--line)">🔐 Судья</a>
@@ -163,11 +170,28 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px;text-align:center}
   </div>
 </header>
 
+<section class="card lobby" id="join">
+  <div id="playerBox">
+    <h2>🎮 Вход в турнир</h2>
+    <p class="muted">Введите ID комнаты от судьи и свой ник — вы сразу попадёте в список участников. Жеребьёвка, сетка и ваш матч появятся на этом экране сами, обновлять страницу не нужно.</p>
+    <div class="row"><input type="text" id="myRoomIn" placeholder="ID комнаты (от судьи)" maxlength="64" spellcheck="false"><input type="text" id="myNickIn" placeholder="Ваш ник: Имя_Фамилия" maxlength="32" spellcheck="false"><button class="btn big" id="myNickBtn">Войти</button></div>
+    <div class="msg" id="myMsg"></div>
+    <div id="myMatch"></div>
+  </div>
+  <div id="judgeLobby" hidden>
+    <h2>⚖️ Лобби судьи</h2>
+    <p class="muted">ID комнаты: <code id="roomId2" style="font-size:18px"></code> · игроки вводят его и ник и попадают в список сами.</p>
+    <div class="row"><button class="btn ghost sm" id="lobbyCopyId">Скопировать ID</button><button class="btn ghost sm" id="lobbyCopyLink">Скопировать ссылку для игроков</button></div>
+    <p id="lobbyCount" class="small"></p>
+    <button class="btn big" id="btnStartBig">🎲 Начать турнир</button>
+  </div>
+  <ul class="plist" id="lobbyList"></ul>
+</section>
+
 <section class="card" id="registration">
   <h2>Регистрация и участники</h2>
   <div class="grid2">
-    <div>
-      <h3>Подать заявку</h3>
+    <details class="alt"><summary>Подать заявку кодом для форума (запасной вариант)</summary>
       <p class="muted small">Введите игровой ник в формате <b>Имя_Фамилия</b> (латиница, цифры, подчёркивание). Вы получите короткий код — вставьте его в свою тему на форуме. Судья перенесёт ваш ник в список.</p>
       <form id="regForm" class="row" autocomplete="off">
         <input type="text" id="nickInput" placeholder="Nick_Name" maxlength="32" spellcheck="false">
@@ -179,7 +203,7 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px;text-align:center}
         <code id="codeText"></code>
         <button class="btn sm" id="copyCode" type="button">Скопировать код</button>
       </div>
-    </div>
+    </details>
     <div>
       <h3>Список участников</h3>
       <ul class="plist" id="plist"></ul>
@@ -230,11 +254,7 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px;text-align:center}
 
 <section class="card" id="current">
   <h2>Текущий матч</h2>
-  <div class="sub" id="playerBox"><b>🎮 Я участник</b> <span class="muted small">— введите свой ник, чтобы задавать вопросы и отвечать со своего устройства</span>
-    <div class="row"><input type="text" id="myRoomIn" placeholder="ID комнаты (от судьи)" maxlength="64" spellcheck="false"><input type="text" id="myNickIn" placeholder="Nick_Name" maxlength="32" spellcheck="false"><button class="btn sm" id="myNickBtn">Подключиться</button></div>
-    <div class="msg" id="myMsg"></div>
-    <div class="small" id="myMatch" style="margin-top:8px"></div></div>
-  <div id="currentBox"></div>
+    <div id="currentBox"></div>
   <div class="timer" id="timerDisplay">01:00</div>
   <p class="muted small" style="text-align:center" id="timerNote"></p>
   <div class="row" id="timerBtns" style="justify-content:center" hidden>
@@ -838,10 +858,11 @@ const PEER_OPTS = { config: { iceServers: [
   // бесплатный публичный TURN (если прямое соединение невозможно); при желании замените на свой
   { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
 ] } };
+function isOn(n) { const k = String(n).toLowerCase(); return isJudge ? online(n) : net.online.some(x => String(x).toLowerCase() === k); }
 function online(n) { return net.conns.some(c => c.open && c.nick && c.nick.toLowerCase() === String(n).toLowerCase()); }
-const net = { peer: null, conn: null, ok: false, conns: [], lastJson: '', rt: null };
+const net = { online: [], oj: '', seenDraw: undefined, dv: null, peer: null, conn: null, ok: false, conns: [], lastJson: '', rt: null };
 function setNet(text, cls) { const e = $('netChip'); e.hidden = false; e.textContent = text; e.className = 'chip ' + (cls || ''); }
-function snapshot() { return { t: 's', S: S, T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
+function snapshot() { return { t: 's', O: net.conns.filter(c => c.open && c.nick).map(c => c.nick), S: S, T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
 function updateNetChip() {
   if (!isJudge || !net.peer) return;
   const names = net.conns.filter(c => c.open && c.nick).map(c => c.nick);
@@ -876,7 +897,7 @@ function applyRoom(id) {
   for (const k in localConns) delete localConns[k];
   net.localAt = 0; net.lastJson = '';
   openChan();
-  if ($('roomId')) $('roomId').textContent = id;
+  if ($('roomId')) $('roomId').textContent = id; if ($('roomId2')) $('roomId2').textContent = id;
   if ($('myRoomIn')) $('myRoomIn').value = id;
 }
 openChan();
@@ -892,6 +913,19 @@ function netBroadcast() {
   if (!isJudge) return;
   const msg = snapshot(); if (chan) chan.postMessage(msg);
   if (!net.peer) return; net.conns.forEach(c => { if (c.open) { try { c.send(msg); } catch (e) {} } });
+}
+function netEvent(msg) { if (chan) chan.postMessage(msg); net.conns.forEach(c => { if (c.open && !c.local) { try { c.send(msg); } catch (e) {} } }); }
+function drawStartView() {
+  if (isJudge) return;
+  clear($('drawList')); $('drawClose').hidden = true; $('drawTitle').textContent = 'Жеребьёвка…'; $('drawModal').hidden = false;
+  clearInterval(net.dv); net.dv = setInterval(() => { if (S.players.length) $('drawRoll').textContent = S.players[rnd(S.players.length)].nick; }, 70);
+}
+function drawEndView() {
+  if (isJudge || !S.draw || !S.draw.order) return;
+  clearInterval(net.dv); $('drawModal').hidden = false; $('drawTitle').textContent = 'Жеребьёвка завершена'; $('drawRoll').textContent = ''; clear($('drawList'));
+  const byes = S.rounds[0] ? S.rounds[0].filter((m, i) => S.draw.byeMatches.indexOf(i) >= 0).map(m => m.a) : [];
+  S.draw.order.forEach((pid, k) => $('drawList').appendChild(h('li', null, h('span', { class: 'seed' }, k + 1), nick(S, pid), byes.indexOf(pid) >= 0 ? h('span', { class: 'tag' }, 'без пары → экзамен у судьи') : null)));
+  $('drawClose').hidden = false;
 }
 function netSend(msg) { if (net.conn && net.conn.open) net.conn.send(msg); else if (chan && linked()) chan.postMessage(Object.assign({ cid: cid }, msg)); else alert('Нет связи с судьёй.'); }
 function stopNet() { clearTimeout(net.rt); if (net.peer) { try { net.peer.destroy(); } catch (e) {} } net.peer = null; net.conn = null; net.conns = []; net.ok = false; }
@@ -915,8 +949,14 @@ function startHost() {
 function onPeerMsg(c, d) {   // сообщения игроков (проверяем всё: ник, фазу, чей ход)
   if (!d || typeof d.t !== 'string') return;
   if (d.t === 'hello') {
-    const n = String(d.nick || '').trim().toLowerCase(), p = S.players.find(x => x.nick.toLowerCase() === n), prev = c.nick;
-    c.nick = p ? p.nick : null; c.send({ t: 'role', nick: c.nick }); updateNetChip(); if (prev !== c.nick) render(); return;
+    const n = String(d.nick || '').trim(), k = n.toLowerCase(), prev = c.nick; let why = '';
+    let p = S.players.find(x => x.nick.toLowerCase() === k);
+    if (!p) {   // автоматическая регистрация в лобби
+      if (!isValidNick(n)) why = 'Неверный формат ника (нужно Имя_Фамилия: латиница, цифры, подчёркивание).';
+      else if (S.phase !== 'reg' || !S.regOpen) why = 'Регистрация закрыта: турнир уже начался.';
+      else { act(() => { addNicks(S, n); }); p = S.players.find(x => x.nick.toLowerCase() === k); }
+    }
+    c.nick = p ? p.nick : null; c.send({ t: 'role', nick: c.nick, why: why }); updateNetChip(); if (prev !== c.nick) render(); return;
   }
   const m = curMatch();
   if (!c.nick || !m || !isLive(m) || m.kind !== 'duel' || m.live.mode !== 'duel' || !m.live.asker) return;
@@ -942,11 +982,15 @@ function startClient() {
 }
 function onPeerData(d) {
   if (!d) return;
+  if (d.t === 'drawstart') { drawStartView(); return; }
   if (d.t === 's' && d.S) {
+    const oj = JSON.stringify(d.O || []); if (oj !== net.oj) { net.oj = oj; net.online = d.O || []; renderPlayers(); renderLobby(); }
     const j = JSON.stringify(d.S);
     if (j !== net.lastJson) { net.lastJson = j; S = normalize(d.S); render(); }
+    if (S.drawAt && S.drawAt !== net.seenDraw) { const first = net.seenDraw === undefined; net.seenDraw = S.drawAt; if (!first) drawEndView(); }
+    else if (net.seenDraw === undefined) net.seenDraw = S.drawAt || 0;
     if (d.T) { timerStop(); T.total = d.T.total; T.rem = d.T.rem; T.touched = d.T.touched; renderTimer(); if (d.T.running) timerStart(); }
-  } else if (d.t === 'role') showMsg('myMsg', d.nick ? 'Вы подключены как ' + d.nick + '.' : 'Такого ника нет в списке участников.', !!d.nick);
+  } else if (d.t === 'role') showMsg('myMsg', d.nick ? '✅ Вы в турнире как ' + d.nick + '. Ждите жеребьёвку.' : (d.why || 'Такого ника нет в списке участников.'), !!d.nick);
 }
 document.addEventListener('click', () => { if (!isJudge) ensureAudio(); });   // звук для зрителей (нужен жест)
 
@@ -974,7 +1018,7 @@ function renderPlayers() {
   const ul = $('plist'); clear(ul);
   const list = S.players.slice();
   if (S.rounds.length) list.sort((x, y) => (S.seeds[x.id] || 999) - (S.seeds[y.id] || 999));
-  list.forEach(p => ul.appendChild(h('li', { class: isOut(p.id) ? 'out' : '' }, S.seeds[p.id] ? h('span', { class: 'seed' }, S.seeds[p.id]) : null, p.nick)));
+  list.forEach(p => ul.appendChild(h('li', { class: isOut(p.id) ? 'out' : '' }, S.seeds[p.id] ? h('span', { class: 'seed' }, S.seeds[p.id]) : null, p.nick, isOn(p.nick) ? h('span', { class: 'dot' }, '● в сети') : null)));
   $('plistEmpty').hidden = S.players.length > 0;
   const open = S.phase === 'reg' && S.regOpen;
   $('nickInput').disabled = !open; $('regSubmit').disabled = !open;
@@ -1270,8 +1314,19 @@ function reportText(rep) {
 }
 function showMsg(id, text, ok) { const e = $(id); e.textContent = text; e.className = 'msg ' + (ok ? 'ok' : 'err'); }
 
+function renderLobby() {
+  const ul = $('lobbyList'); clear(ul);
+  S.players.forEach(p => ul.appendChild(h('li', { class: isOn(p.nick) ? 'on' : '' }, p.nick, isOn(p.nick) ? h('span', { class: 'dot' }, '● в сети') : null)));
+  $('judgeLobby').hidden = !isJudge;
+  if (!isJudge) return;
+  const n = S.players.length, reg = S.phase === 'reg';
+  $('roomId2').textContent = ROOM_ID || '—';
+  $('lobbyCount').textContent = 'Участников: ' + n + ' · сейчас в сети: ' + S.players.filter(p => online(p.nick)).length;
+  $('btnStartBig').disabled = !reg || n < 2;
+  $('btnStartBig').textContent = !reg ? 'Турнир уже идёт' : (n < 2 ? 'Нужно минимум 2 участника' : '🎲 Начать турнир (' + n + ')');
+}
 function render() {
-  renderHeader(); renderPlayers(); renderBracket(); renderSchedule(); renderCurrent(); renderControls(); renderResults(); renderJudge(); renderTimer();
+  renderLobby(); renderHeader(); renderPlayers(); renderBracket(); renderSchedule(); renderCurrent(); renderControls(); renderResults(); renderJudge(); renderTimer();
 }
 
 // ---------- жеребьёвка ----------
@@ -1279,13 +1334,12 @@ function startDraw() {
   if (!isJudge || S.phase !== 'reg') return;
   if (S.players.length < 2) { alert('Нужно минимум 2 участника.'); return; }
   if (S.players.length > 64) { alert('Максимум 64 участника.'); return; }
-  if (!confirm('Начать турнир с ' + S.players.length + ' участниками? Регистрация будет закрыта.')) return;
   const draw = makeDraw(S), modal = $('drawModal');
-  clear($('drawList')); $('drawClose').hidden = true; $('drawTitle').textContent = 'Жеребьёвка…'; modal.hidden = false;
+  clear($('drawList')); $('drawClose').hidden = true; $('drawTitle').textContent = 'Жеребьёвка…'; modal.hidden = false; netEvent({ t: 'drawstart' });
   const iv = setInterval(() => { $('drawRoll').textContent = S.players[rnd(S.players.length)].nick; }, 70);
   setTimeout(() => {
     clearInterval(iv);
-    act(() => { applyDraw(S, draw); });
+    act(() => { applyDraw(S, draw); S.drawAt = Date.now(); });
     const byePids = S.rounds[0].filter((m, i) => draw.byeMatches.indexOf(i) >= 0).map(m => m.a);
     $('drawTitle').textContent = 'Жеребьёвка завершена'; $('drawRoll').textContent = '';
     draw.order.forEach((pid, k) => setTimeout(() => {
@@ -1359,7 +1413,10 @@ function bindStatic() {
   });
 
   // турнир
-  $('btnStart').addEventListener('click', startDraw);
+  $('btnStart').addEventListener('click', startDraw); $('btnStartBig').addEventListener('click', startDraw);
+  $('lobbyCopyId').addEventListener('click', e => copyText(ROOM_ID, e.target));
+  $('lobbyCopyLink').addEventListener('click', e => copyText(location.href.split(/[?#]/)[0] + '?room=' + ROOM_ID, e.target));
+  $('myNickIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('myNickBtn').click(); });
   $('drawClose').addEventListener('click', () => { $('drawModal').hidden = true; });
   $('btnReset').addEventListener('click', () => {
     if (!confirm('Сбросить турнир? Сетка, результаты, расписание и логи будут удалены. Список участников сохранится.')) return;
