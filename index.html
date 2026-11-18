@@ -268,6 +268,8 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px;text-align:center}
         <button class="btn" id="btnStart">🎲 Начать турнир</button>
         <button class="btn danger" id="btnReset">Сбросить турнир</button>
       </div>
+      <div class="sub"><b>🧪 Тест в одиночку</b> <span class="muted small">— добавить тестовых участников Test_Player1…</span>
+        <div class="row"><input type="number" id="testN" value="5" min="2" max="64" style="width:80px"><button class="btn ghost sm" id="btnTest">Добавить тестовых</button></div></div>
       <label class="check"><input type="checkbox" id="optThird"> Играть матч за 3-е место (до жеребьёвки)</label>
       <div class="row"><button class="btn ghost" id="btnReg">Закрыть регистрацию</button></div>
       <h3>Экзамен (участник без пары)</h3>
@@ -835,13 +837,40 @@ function updateNetChip() {
   const names = net.conns.filter(c => c.open && c.nick).map(c => c.nick);
   setNet('📡 P2P: подключений ' + net.conns.filter(c => c.open).length + (names.length ? ' (игроки: ' + names.join(', ') + ')' : ''), 'ok');
 }
+// Вкладки одного браузера (судья + игрок/зритель во второй вкладке) обновляются мгновенно через BroadcastChannel,
+// интернет и PeerJS для этого не нужны — удобно проверять турнир в одиночку.
+const chan = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('hs-live-' + ROOM_ID) : null;
+const cid = Math.random().toString(36).slice(2), localConns = {};
+function linked() { return net.ok || Date.now() - (net.localAt || 0) < 7000; }
+if (chan) chan.onmessage = ev => {
+  const d = ev.data; if (!d) return;
+  if (isJudge) {
+    if (!d.cid) return;
+    let c = localConns[d.cid];
+    if (!c) { c = localConns[d.cid] = { open: true, local: true, cid: d.cid, nick: null, send: m => chan.postMessage(Object.assign({ to: d.cid }, m)) }; net.conns.push(c); }
+    c.seen = Date.now();
+    if (d.t === 'ping') c.send(snapshot()); else onPeerMsg(c, d);
+  } else if (!d.to || d.to === cid) {
+    if (d.t === 's') { net.localAt = Date.now(); if (!net.ok) setNet('📡 Онлайн с судьёй (этот браузер)', 'ok'); renderControls(); }
+    onPeerData(d);
+  }
+};
+setInterval(() => {   // «пульс»: судья рассылает состояние, вкладки игроков отзываются
+  if (!chan) return;
+  if (isJudge) {
+    const now = Date.now();
+    net.conns = net.conns.filter(c => { if (c.local && now - c.seen > 8000) { delete localConns[c.cid]; return false; } return true; });
+    chan.postMessage(snapshot());
+  } else { chan.postMessage({ cid: cid, t: 'ping' }); if (myNick) chan.postMessage({ cid: cid, t: 'hello', nick: myNick }); }
+}, 2500);
 function netBroadcast() {
-  if (!isJudge || !net.peer) return;
-  const msg = snapshot(); net.conns.forEach(c => { if (c.open) { try { c.send(msg); } catch (e) {} } });
+  if (!isJudge) return;
+  const msg = snapshot(); if (chan) chan.postMessage(msg);
+  if (!net.peer) return; net.conns.forEach(c => { if (c.open) { try { c.send(msg); } catch (e) {} } });
 }
-function netSend(msg) { if (net.conn && net.conn.open) net.conn.send(msg); else alert('Нет связи с судьёй.'); }
+function netSend(msg) { if (net.conn && net.conn.open) net.conn.send(msg); else if (chan && linked()) chan.postMessage(Object.assign({ cid: cid }, msg)); else alert('Нет связи с судьёй.'); }
 function stopNet() { clearTimeout(net.rt); if (net.peer) { try { net.peer.destroy(); } catch (e) {} } net.peer = null; net.conn = null; net.conns = []; net.ok = false; }
-function netRestart() { stopNet(); if (typeof Peer === 'undefined') { setNet('📡 PeerJS не загрузился — работает сохранённое состояние', 'bad'); return; } isJudge ? startHost() : startClient(); }
+function netRestart() { stopNet(); if (typeof Peer === 'undefined') { if (!linked()) setNet('📡 PeerJS не загрузился (нет интернета?) — работает только связь вкладок одного браузера', 'bad'); return; } isJudge ? startHost() : startClient(); }
 
 function startHost() {
   const p = net.peer = new Peer(ROOM_ID, PEER_OPTS);
@@ -857,8 +886,8 @@ function startHost() {
 function onPeerMsg(c, d) {   // сообщения игроков (проверяем всё: ник, фазу, чей ход)
   if (!d || typeof d.t !== 'string') return;
   if (d.t === 'hello') {
-    const n = String(d.nick || '').trim().toLowerCase(), p = S.players.find(x => x.nick.toLowerCase() === n);
-    c.nick = p ? p.nick : null; c.send({ t: 'role', nick: c.nick }); updateNetChip(); render(); return;
+    const n = String(d.nick || '').trim().toLowerCase(), p = S.players.find(x => x.nick.toLowerCase() === n), prev = c.nick;
+    c.nick = p ? p.nick : null; c.send({ t: 'role', nick: c.nick }); updateNetChip(); if (prev !== c.nick) render(); return;
   }
   const m = curMatch();
   if (!c.nick || !m || !isLive(m) || m.kind !== 'duel' || m.live.mode !== 'duel' || !m.live.asker) return;
@@ -1040,7 +1069,7 @@ function myPanel(m) {
   if (isJudge || !myNick) return null;
   const L = m.live, key = myNick.toLowerCase();
   const side = nick(S, m.a).toLowerCase() === key ? 'a' : nick(S, m.b).toLowerCase() === key ? 'b' : null;
-  if (!side || !net.ok) return null;
+  if (!side || !linked()) return null;
   const ta = h('textarea', { id: 'myTa', maxlength: 500, placeholder: 'Текст…' }); ta.value = draft;
   ta.addEventListener('input', () => { draft = ta.value; });
   const send = (t, ok) => () => { if (t !== 'idk' && !ta.value.trim()) return; if (t === 'idk' && !confirm('«Не знаю» — это поражение. Уверены?')) return; netSend({ t: t, text: ta.value }); draft = ''; };
@@ -1118,7 +1147,7 @@ function renderControls() {
   $('playerBox').hidden = isJudge; renderMyMatch();
   const m0 = curMatch(), ph = m0 && m0.status === 'live' && m0.live ? m0.live.phase : null;
   let note = ph === 'ask' ? '✍️ Время на формулировку вопроса' : ph === 'answer' ? '🧠 Время на ответ' : '';
-  if (!isJudge && !net.ok) note = 'Нет связи с судьёй: таймер статичен, показано сохранённое состояние.';
+  if (!isJudge && !linked()) note = 'Нет связи с судьёй: таймер статичен, показано сохранённое состояние.';
   $('timerNote').textContent = note;
   if (!isJudge) return;
   box.appendChild(h('h3', null, 'Управление матчем'));
@@ -1146,6 +1175,8 @@ function renderControls() {
     box.appendChild(h('div', { class: 'row' },
       h('button', { class: 'btn warn', disabled: !!L.first || rolling, onclick: () => rollAsker(m) }, '🎲 Рандом: кто спрашивает первым'),
       h('button', { class: 'btn ghost', disabled: L.phase !== 'ask', onclick: () => { act(() => { duelQuestion(S, m, ''); }); phaseTimer(); } }, '➡ Вопрос задан (старт ответа)'),
+      h('button', { class: 'btn ghost sm', disabled: L.phase !== 'ask', onclick: () => { const t = prompt('Текст вопроса (за спрашивающего):'); if (t && t.trim()) { act(() => { duelQuestion(S, m, t.trim().slice(0, 500)); }); phaseTimer(); } } }, '🧪 Вопрос за игрока'),
+      h('button', { class: 'btn ghost sm', disabled: L.phase !== 'answer' || !!L.aText, onclick: () => { const t = prompt('Текст ответа (за отвечающего):'); if (t && t.trim()) { act(() => { duelAnswerText(S, m, t.trim().slice(0, 500)); }); timerStop(); } } }, '🧪 Ответ за игрока'),
       h('button', { class: 'btn', disabled: !L.asker, onclick: () => verdict(ms => duelCorrect(S, m, ms)) }, '✅ Ответ верный'),
       h('button', { class: 'btn ghost', disabled: !L.asker, onclick: () => { act(() => { duelReject(S, m); }); phaseTimer(); } }, '🚫 Отклонить вопрос')));
   } else if (L.mode === 'judge') {
@@ -1265,7 +1296,7 @@ function bindStatic() {
     const n = $('myNickIn').value.trim();
     if (!isValidNick(n)) { showMsg('myMsg', 'Неверный формат ника (Имя_Фамилия).', false); return; }
     myNick = n; try { localStorage.setItem('hs-nick', n); } catch (e) {}
-    if (net.conn && net.conn.open) net.conn.send({ t: 'hello', nick: n }); else { showMsg('myMsg', 'Подключаюсь к судье…', true); netRestart(); }
+    if (linked()) netSend({ t: 'hello', nick: n }); else { showMsg('myMsg', 'Подключаюсь к судье…', true); netRestart(); }
   });
   $('myNickIn').value = myNick;
   // таймер
@@ -1308,6 +1339,11 @@ function bindStatic() {
   $('examNeed').addEventListener('change', e => act(() => { S.settings.examNeed = clamp(e.target.value, 0, S.settings.examQuestions); }));
   $('tzInput').addEventListener('change', e => act(() => { S.settings.tz = e.target.value.trim() || TIMEZONE_LABEL; }));
   $('btnUndo').addEventListener('click', undo);
+  $('btnTest').addEventListener('click', () => {
+    if (S.phase !== 'reg') { alert('Тестовых участников можно добавить только до начала турнира.'); return; }
+    const n = clamp($('testN').value, 2, 64), t = []; for (let i = 1; i <= n; i++) t.push('Test_Player' + i);
+    act(() => { addNicks(S, t.join('\n')); });
+  });
 
   // участники
   $('btnAdd').addEventListener('click', () => {
