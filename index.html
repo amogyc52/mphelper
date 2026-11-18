@@ -246,7 +246,7 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
     <li>Проигрыш: время вышло, ответ неверный, ответа нет или «не знаю».</li>
     <li>Вопросы нельзя повторять. Если судья отклонил вопрос, нужно придумать новый. После 3 отклонённых подряд засчитывается поражение.</li>
     <li>Лимит: 10 вопросов от каждого. Если никто не проиграл, судья задаёт обоим сложные вопросы по админке до первой ошибки.</li>
-    <li>Участник без пары проходит экзамен: судья задаёт ему вопросы, при провале он вылетает.</li>
+    <li>Участник без пары проходит экзамен: судья задаёт ему вопросы, при провале он вылетает. На формулировку своего вопроса у судьи времени нет, у отвечающего на ответ 1 минута.</li>
     <li>Решение судьи окончательное.</li>
     <li>Проигравший вылетает, победитель проходит дальше.</li>
   </ol>
@@ -617,12 +617,12 @@ function startMatch(st, m) {
   if (m.status !== 'ready') return false;
   m.status = 'live';
   if (m.kind === 'duel') {
-    m.live = { mode: 'duel', asker: null, first: null, q: { a: 0, b: 0 }, rej: { a: 0, b: 0 }, jq: { n: 1, a: null, b: null } };
+    m.live = { mode: 'duel', asker: null, first: null, q: { a: 0, b: 0 }, rej: { a: 0, b: 0 }, jq: { n: 1, a: null, b: null, aT: { a: '', b: '' } } };
     log(st, m, 'Матч начат: ' + nick(st, m.a) + ' vs ' + nick(st, m.b));
   } else {
     const tot = clamp(st.settings.examQuestions, 1, 50);
     const need = st.settings.examNeed > 0 ? Math.min(clamp(st.settings.examNeed, 1, 50), tot) : tot;
-    m.live = { mode: 'exam', pid: m.a || m.b, total: tot, need: need, asked: 0, correct: 0, wrong: 0 };
+    m.live = { mode: 'exam', pid: m.a || m.b, total: tot, need: need, asked: 0, correct: 0, wrong: 0, phase: 'jask', qText: '', aText: '' };
     log(st, m, 'Экзамен начат: ' + nick(st, m.live.pid) + '. Вопросов: ' + tot + ', нужно верных: ' + need);
   }
   return true;
@@ -650,7 +650,7 @@ function duelCorrect(st, m, ms) {
   log(st, m, 'Вопрос ' + L.q[s] + '/' + QUESTION_LIMIT + ' от ' + nick(st, m[s]) + ': ' + nick(st, m[o]) + ' ответил верно' + secStr(ms));
   L.asker = o; nextAsk(L);
   if (L.q.a >= QUESTION_LIMIT && L.q.b >= QUESTION_LIMIT) {
-    L.mode = 'judge'; L.asker = null; L.phase = null;
+    L.mode = 'judge'; L.asker = null; L.phase = 'jask'; L.qText = ''; L.jq.aT = { a: '', b: '' };
     log(st, m, 'Лимит вопросов исчерпан у обоих. Режим «Вопросы судьи» — до первой ошибки');
   }
   return true;
@@ -675,6 +675,22 @@ function duelAnswerText(st, m, text) {
   if (!isLive(m) || m.kind !== 'duel' || m.live.mode !== 'duel' || m.live.phase !== 'answer' || m.live.aText) return false;
   m.live.aText = text; log(st, m, nick(st, m[other(m.live.asker)]) + ' отправил ответ: «' + text + '»');
   return true;
+}
+// Вопрос судьи (экзамен или «Вопросы судьи»): у судьи на формулировку времени НЕТ ограничения ('jask'),
+// минута на ответ запускается только у отвечающего, когда судья отправил вопрос.
+function judgeMode(m) { return m.kind === 'exam' || (m.kind === 'duel' && m.live.mode === 'judge'); }
+function judgeAsk(st, m, text) {
+  if (!isLive(m) || !judgeMode(m) || m.live.phase !== 'jask') return false;
+  const L = m.live; L.phase = 'answer'; L.qText = text || ''; L.aText = ''; if (L.jq) L.jq.aT = { a: '', b: '' };
+  log(st, m, 'Вопрос судьи №' + (m.kind === 'exam' ? L.asked + 1 : L.jq.n) + (text ? ': «' + text + '»' : ' задан устно'));
+  return true;
+}
+function judgeAnswerText(st, m, side, text) {
+  if (!isLive(m) || !judgeMode(m) || m.live.phase !== 'answer') return false;
+  const L = m.live;
+  if (m.kind === 'exam') { if (L.aText) return false; L.aText = text; log(st, m, nick(st, L.pid) + ' отправил ответ: «' + text + '»'); return true; }
+  if (L.jq.aT[side]) return false;
+  L.jq.aT[side] = text; log(st, m, nick(st, m[side]) + ' отправил ответ: «' + text + '»'); return true;
 }
 const REASONS = { time: 'время вышло', wrong: 'неверный ответ', idk: 'ответ «не знаю»' };
 function duelLose(st, m, side, reasonKey, ms) {
@@ -705,7 +721,7 @@ function judgeAnswer(st, m, side, ok, ms) {
   if (jq.a !== null && jq.b !== null) {
     if (jq.a === jq.b) {
       log(st, m, 'Вопрос судьи №' + jq.n + ': ' + (jq.a ? 'оба ответили верно' : 'оба ошиблись') + ', следующий вопрос');
-      jq.n++; jq.a = null; jq.b = null;
+      jq.n++; jq.a = null; jq.b = null; m.live.phase = 'jask'; m.live.qText = ''; jq.aT = { a: '', b: '' };
     } else {
       finishDuel(st, m, jq.a ? 'b' : 'a', 'ошибка в вопросе судьи №' + jq.n);
     }
@@ -731,6 +747,7 @@ function examAnswer(st, m, ok, ms) {
   const rem = L.total - L.asked;
   if (L.correct + rem < L.need) finishExam(st, m, false, 'нужное число верных уже недостижимо');
   else if (rem === 0) finishExam(st, m, true, '');
+  else { L.phase = 'jask'; L.qText = ''; L.aText = ''; }
   return true;
 }
 function examForce(st, m, pass) {
@@ -828,7 +845,7 @@ function timerStop() { T.running = false; if (T.iv) { clearInterval(T.iv); T.iv 
 function phaseSecs() { const m = S && curMatch(); return (m && m.status === 'live' && m.live && m.live.phase === 'ask' ? FORMULATE_SECONDS : ANSWER_SECONDS) * 1000; }
 function timerReset() { timerStop(); T.total = phaseSecs(); T.rem = T.total; T.touched = false; renderTimer(); netBroadcast(); }
 // после смены фазы: сброс таймера на нужную длину и автозапуск (только у судьи)
-function phaseTimer() { timerReset(); const m = curMatch(); if (isJudge && m && isLive(m) && m.live && m.live.phase) timerStart(); }
+function phaseTimer(go) { if (go === undefined) go = true; timerReset(); const m = curMatch(); if (isJudge && m && isLive(m) && m.live && (m.live.phase === 'ask' || (go && m.live.phase === 'answer'))) timerStart(); }
 function timerStart() {
   ensureAudio();
   if (T.running || T.rem <= 0) return;
@@ -957,6 +974,16 @@ function onPeerMsg(c, d) {   // сообщения игроков (провер�
       else { act(() => { addNicks(S, n); }); p = S.players.find(x => x.nick.toLowerCase() === k); }
     }
     c.nick = p ? p.nick : null; c.send({ t: 'role', nick: c.nick, why: why }); updateNetChip(); if (prev !== c.nick) render(); return;
+  }
+  const m0 = curMatch();
+  if (c.nick && m0 && isLive(m0) && judgeMode(m0) && m0.live.phase === 'answer' && (d.t === 'answer' || d.t === 'idk')) {
+    const L0 = m0.live, ex = m0.kind === 'exam';
+    const s0 = ex ? (nick(S, L0.pid) === c.nick ? 'x' : null) : (nick(S, m0.a) === c.nick ? 'a' : nick(S, m0.b) === c.nick ? 'b' : null);
+    if (!s0) return;
+    const t0 = String(d.text || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+    if (d.t === 'answer' && t0) { act(() => { judgeAnswerText(S, m0, s0, t0); }); if (ex) timerStop(); }
+    else if (d.t === 'idk') { if (ex) verdict(ms => examAnswer(S, m0, false, ms)); else if (L0.jq[s0] === null) verdict(ms => judgeAnswer(S, m0, s0, false, ms)); }
+    return;
   }
   const m = curMatch();
   if (!c.nick || !m || !isLive(m) || m.kind !== 'duel' || m.live.mode !== 'duel' || !m.live.asker) return;
@@ -1146,6 +1173,12 @@ function myPanel(m) {
   const ta = h('textarea', { id: 'myTa', maxlength: 500, placeholder: 'Текст…' }); ta.value = draft;
   ta.addEventListener('input', () => { draft = ta.value; });
   const send = (t, ok) => () => { if (t !== 'idk' && !ta.value.trim()) return; if (t === 'idk' && !confirm('«Не знаю» — это поражение. Уверены?')) return; netSend({ t: t, text: ta.value }); draft = ''; };
+  if (m.kind === 'exam' || L.mode === 'judge') {   // вопрос задаёт судья
+    const exam = m.kind === 'exam', sent = exam ? L.aText : L.jq.aT[side];
+    if (L.phase === 'answer' && !sent && (exam || L.jq[side] === null))
+      return h('div', { class: 'sub' }, h('b', null, '🧠 Ваш ответ судье'), ta, h('div', { class: 'row' }, h('button', { class: 'btn', onclick: send('answer') }, 'Отправить ответ'), h('button', { class: 'btn danger', onclick: send('idk') }, 'Не знаю')));
+    return h('div', { class: 'sub small muted' }, L.phase === 'jask' ? 'Судья формулирует вопрос…' : 'Ответ отправлен, ждите решения судьи.');
+  }
   if (L.phase === 'ask' && L.asker === side) return h('div', { class: 'sub' }, h('b', null, '✍️ Ваш вопрос'), ta, h('div', { class: 'row' }, h('button', { class: 'btn', onclick: send('question') }, 'Отправить вопрос')));
   if (L.phase === 'answer' && L.asker !== side && !L.aText) return h('div', { class: 'sub' }, h('b', null, '🧠 Ваш ответ'), ta, h('div', { class: 'row' }, h('button', { class: 'btn', onclick: send('answer') }, 'Отправить ответ'), h('button', { class: 'btn danger', onclick: send('idk') }, 'Не знаю')));
   return h('div', { class: 'sub small muted' }, 'Ожидайте своей очереди…');
@@ -1169,6 +1202,10 @@ function renderCurrent() {
       const mp = myPanel(m); if (mp) box.appendChild(mp);
     }
     if (m.status === 'live' && L.mode === 'judge') box.appendChild(h('div', { class: 'banner' }, '⚖️ Режим «Вопросы судьи» — вопрос №' + L.jq.n + '. Ошибся — проиграл.'));
+    if (m.status === 'live' && L.mode === 'judge') {
+      box.appendChild(h('div', { class: 'banner' }, L.phase === 'answer' ? '❓ Вопрос судьи: ' + (L.qText || 'задан устно') + ' · оба отвечают (1 минута)' : '⚖️ Судья формулирует вопрос — время не ограничено'));
+      const mp3 = myPanel(m); if (mp3) box.appendChild(mp3);
+    }
   } else if (m.kind === 'exam') {
     const L = m.live, pid = m.a || m.b;
     box.appendChild(h('div', { class: 'duel', style: 'grid-template-columns:1fr auto 1fr' },
@@ -1178,6 +1215,11 @@ function renderCurrent() {
     if (L) box.appendChild(h('div', { class: 'banner' },
       m.status === 'live' ? 'Вопрос судьи №' + (L.asked + 1) + ' из ' + L.total + ' · ' : '', 'верных: ' + L.correct + ' · ошибок: ' + L.wrong + ' · нужно верных: ' + L.need + ' из ' + L.total));
     else box.appendChild(h('div', { class: 'banner' }, 'Экзамен готов к началу (вопросов: ' + clamp(S.settings.examQuestions, 1, 50) + ').'));
+    if (m.live && m.status === 'live') {
+      const E = m.live;
+      box.appendChild(h('div', { class: 'banner' }, E.phase === 'answer' ? ['❓ Вопрос судьи: ' + (E.qText || 'задан устно'), h('br'), '🧠 ' + nick(S, E.pid) + ' отвечает (1 минута)' + (E.aText ? ' · 💬 ' + E.aText : '')] : '⚖️ Судья формулирует вопрос — время не ограничено'));
+      const mp2 = myPanel(m); if (mp2) box.appendChild(mp2);
+    }
   } else box.appendChild(h('p', { class: 'muted' }, 'В этом матче нет участников.'));
   if (m.status === 'done' && m.res) box.appendChild(h('div', { class: 'banner red' }, m.res));
   if (m.status === 'wait') box.appendChild(h('div', { class: 'banner' }, 'Матч ждёт результатов предыдущих матчей.'));
@@ -1203,7 +1245,11 @@ function rollAsker(m) {
     if (n >= 14) { clearInterval(iv); rolling = false; act(() => { duelRandom(S, m); }); phaseTimer(); }
   }, 90);
 }
-function verdict(fn) { const ms = elapsedMs(); act(() => { fn(ms); }); phaseTimer(); }
+function verdict(fn) {
+  const ms = elapsedMs(); act(() => { fn(ms); });
+  const m = curMatch(); if (m && isLive(m) && m.kind === 'duel' && m.live.mode === 'judge' && m.live.phase === 'answer') return;   // второй ещё отвечает
+  phaseTimer(false);
+}
 function confirmDo(text, fn) { if (confirm(text)) verdict(fn); }
 
 function sideBlock(m, side) {
@@ -1214,12 +1260,19 @@ function sideBlock(m, side) {
       h('button', { class: 'btn sm', onclick: () => confirmDo('Засчитать победу: ' + n + '?', () => duelWin(S, m, side)) }, 'Засчитать победу'),
       h('button', { class: 'btn ghost sm', onclick: () => confirmDo('Техническое поражение (неявка): ' + n + '?', () => duelTech(S, m, side)) }, 'Тех. поражение')));
 }
+let jDraft = '';
+function askBox(m) {
+  const ta = h('textarea', { id: 'jQ', maxlength: 500, placeholder: 'Текст вопроса судьи (время на формулировку не ограничено)…' }); ta.value = jDraft;
+  ta.addEventListener('input', () => { jDraft = ta.value; });
+  return h('div', { class: 'sub' }, h('b', null, '⚖️ Вопрос судьи'), ta,
+    h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => { const t = jDraft.trim().slice(0, 500); jDraft = ''; act(() => { judgeAsk(S, m, t); }); phaseTimer(); } }, '➡ Задать вопрос и запустить 1 минуту ответа')));
+}
 function renderControls() {
   const box = $('matchControls'); clear(box);
   $('timerBtns').hidden = !isJudge; box.hidden = !isJudge;
   $('playerBox').hidden = isJudge; renderMyMatch();
   const m0 = curMatch(), ph = m0 && m0.status === 'live' && m0.live ? m0.live.phase : null;
-  let note = ph === 'ask' ? '✍️ Время на формулировку вопроса' : ph === 'answer' ? '🧠 Время на ответ' : '';
+  let note = ph === 'ask' ? '✍️ Время на формулировку вопроса' : ph === 'answer' ? '🧠 Время на ответ' : ph === 'jask' ? '⚖️ Судья формулирует вопрос — время не ограничено' : '';
   if (!isJudge && !linked()) note = 'Нет связи с судьёй: таймер статичен, показано сохранённое состояние.';
   $('timerNote').textContent = note;
   if (!isJudge) return;
@@ -1235,6 +1288,7 @@ function renderControls() {
   if (m.status === 'done') { box.appendChild(h('div', { class: 'row' }, nextBtn)); return; }
   const L = m.live;
   if (m.kind === 'exam') {
+    if (L.phase === 'jask') box.appendChild(askBox(m));
     box.appendChild(h('div', { class: 'row' },
       h('button', { class: 'btn', onclick: () => verdict(ms => examAnswer(S, m, true, ms)) }, '✅ Верно'),
       h('button', { class: 'btn danger', onclick: () => verdict(ms => examAnswer(S, m, false, ms)) }, '❌ Неверно / не знаю / время вышло')));
@@ -1254,10 +1308,11 @@ function renderControls() {
       h('button', { class: 'btn ghost', disabled: !L.asker, onclick: () => { act(() => { duelReject(S, m); }); phaseTimer(); } }, '🚫 Отклонить вопрос')));
   } else if (L.mode === 'judge') {
     const jq = L.jq;
-    const jb = side => h('div', { class: 'sidebox' }, h('b', null, nick(S, m[side])), h('div', { class: 'small muted' }, jq[side] === null ? 'ждёт ответа' : (jq[side] ? 'ответил верно' : 'ошибся')),
+    const jb = side => h('div', { class: 'sidebox' }, h('b', null, nick(S, m[side])), h('div', { class: 'small muted' }, jq[side] === null ? 'ждёт ответа' : (jq[side] ? 'ответил верно' : 'ошибся')), jq.aT && jq.aT[side] ? h('div', { class: 'small' }, '💬 ' + jq.aT[side]) : null,
       h('div', { class: 'row' },
-        h('button', { class: 'btn sm', disabled: jq[side] !== null, onclick: () => verdict(ms => judgeAnswer(S, m, side, true, ms)) }, '✅ Верно'),
-        h('button', { class: 'btn danger sm', disabled: jq[side] !== null, onclick: () => verdict(ms => judgeAnswer(S, m, side, false, ms)) }, '❌ Ошибся')));
+        h('button', { class: 'btn sm', disabled: jq[side] !== null || L.phase !== 'answer', onclick: () => verdict(ms => judgeAnswer(S, m, side, true, ms)) }, '✅ Верно'),
+        h('button', { class: 'btn danger sm', disabled: jq[side] !== null || L.phase !== 'answer', onclick: () => verdict(ms => judgeAnswer(S, m, side, false, ms)) }, '❌ Ошибся')));
+    if (L.phase === 'jask') box.appendChild(askBox(m));
     box.appendChild(h('div', { class: 'row', style: 'align-items:stretch' }, jb('a'), jb('b')));
   }
   const sel = h('select', { onchange: e => { lossReason = e.target.value; } }, Object.keys(REASONS).map(k => { const o = h('option', { value: k }, REASONS[k]); if (k === lossReason) o.selected = true; return o; }));
@@ -1326,7 +1381,9 @@ function renderLobby() {
   $('btnStartBig').textContent = !reg ? 'Турнир уже идёт' : (n < 2 ? 'Нужно минимум 2 участника' : '🎲 Начать турнир (' + n + ')');
 }
 function render() {
+  const jf = document.activeElement && document.activeElement.id === 'jQ';
   renderLobby(); renderHeader(); renderPlayers(); renderBracket(); renderSchedule(); renderCurrent(); renderControls(); renderResults(); renderJudge(); renderTimer();
+  if (jf && $('jQ')) $('jQ').focus();
 }
 
 // ---------- жеребьёвка ----------
