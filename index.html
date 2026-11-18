@@ -232,7 +232,8 @@ footer{padding:30px 0 50px;color:var(--muted);font-size:13px;text-align:center}
   <h2>Текущий матч</h2>
   <div class="sub" id="playerBox"><b>🎮 Я участник</b> <span class="muted small">— введите свой ник, чтобы задавать вопросы и отвечать со своего устройства</span>
     <div class="row"><input type="text" id="myNickIn" placeholder="Nick_Name" maxlength="32" spellcheck="false"><button class="btn sm" id="myNickBtn">Подключиться</button></div>
-    <div class="msg" id="myMsg"></div></div>
+    <div class="msg" id="myMsg"></div>
+    <div class="small" id="myMatch" style="margin-top:8px"></div></div>
   <div id="currentBox"></div>
   <div class="timer" id="timerDisplay">01:00</div>
   <p class="muted small" style="text-align:center" id="timerNote"></p>
@@ -820,6 +821,12 @@ function timerStart() {
      Судья видит всё в логе и выносит вердикт. Ник вводится без пароля — доверяйте логу судьи.
    • Нужен интернет (брокер PeerJS 0.peerjs.com). Судья держит вкладку открытой.
    ===================================================================== */
+const PEER_OPTS = { config: { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' },
+  // бесплатный публичный TURN (если прямое соединение невозможно); при желании замените на свой
+  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
+] } };
+function online(n) { return net.conns.some(c => c.open && c.nick && c.nick.toLowerCase() === String(n).toLowerCase()); }
 const net = { peer: null, conn: null, ok: false, conns: [], lastJson: '', rt: null };
 function setNet(text, cls) { const e = $('netChip'); e.hidden = false; e.textContent = text; e.className = 'chip ' + (cls || ''); }
 function snapshot() { return { t: 's', S: S, T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
@@ -837,21 +844,21 @@ function stopNet() { clearTimeout(net.rt); if (net.peer) { try { net.peer.destro
 function netRestart() { stopNet(); if (typeof Peer === 'undefined') { setNet('📡 PeerJS не загрузился — работает сохранённое состояние', 'bad'); return; } isJudge ? startHost() : startClient(); }
 
 function startHost() {
-  const p = net.peer = new Peer(ROOM_ID);
+  const p = net.peer = new Peer(ROOM_ID, PEER_OPTS);
   p.on('open', () => { net.ok = true; updateNetChip(); });
   p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
   p.on('error', e => setNet(e.type === 'unavailable-id' ? '📡 Комната занята: судья уже открыт в другой вкладке (или смените ROOM_ID)' : '📡 Ошибка P2P: ' + e.type, 'bad'));
   p.on('connection', c => {
     c.on('open', () => { net.conns.push(c); c.send(snapshot()); updateNetChip(); });
     c.on('data', d => onPeerMsg(c, d));
-    c.on('close', () => { net.conns = net.conns.filter(x => x !== c); updateNetChip(); });
+    c.on('close', () => { net.conns = net.conns.filter(x => x !== c); updateNetChip(); render(); });
   });
 }
 function onPeerMsg(c, d) {   // сообщения игроков (проверяем всё: ник, фазу, чей ход)
   if (!d || typeof d.t !== 'string') return;
   if (d.t === 'hello') {
     const n = String(d.nick || '').trim().toLowerCase(), p = S.players.find(x => x.nick.toLowerCase() === n);
-    c.nick = p ? p.nick : null; c.send({ t: 'role', nick: c.nick }); updateNetChip(); return;
+    c.nick = p ? p.nick : null; c.send({ t: 'role', nick: c.nick }); updateNetChip(); render(); return;
   }
   const m = curMatch();
   if (!c.nick || !m || !isLive(m) || m.kind !== 'duel' || m.live.mode !== 'duel' || !m.live.asker) return;
@@ -864,8 +871,8 @@ function onPeerMsg(c, d) {   // сообщения игроков (провер�
 }
 
 function startClient() {
-  const p = net.peer = new Peer();
-  const lost = () => { net.ok = false; setNet('📡 Нет связи с судьёй — сохранённое состояние', 'bad'); renderControls(); clearTimeout(net.rt); net.rt = setTimeout(() => { if (!isJudge && !net.ok && !p.destroyed) connect(); }, 5000); };
+  const p = net.peer = new Peer(PEER_OPTS);
+  const lost = () => { net.ok = false; setNet('📡 Судья не в сети (он должен войти в «🔐 Судья» на этом сайте) — переподключение каждые 5 с', 'bad'); renderControls(); clearTimeout(net.rt); net.rt = setTimeout(() => { if (!isJudge && !net.ok && !p.destroyed) connect(); }, 5000); };
   const connect = () => {
     const c = net.conn = p.connect(ROOM_ID, { serialization: 'json', reliable: true });
     c.on('open', () => { net.ok = true; setNet('📡 Онлайн: ход турнира вживую', 'ok'); if (myNick) c.send({ t: 'hello', nick: myNick }); renderCurrent(); renderControls(); });
@@ -1009,6 +1016,24 @@ function playerCard(m, side) {
   return h('div', { class: cls }, kids);
 }
 let myNick = '', draft = '';
+function myMatch(pl) {
+  const ms = allMatches(S).filter(m => m.kind === 'duel' && m.status !== 'done' && (m.a === pl.id || m.b === pl.id));
+  return ms.find(m => m.status === 'live') || ms.find(m => m.status === 'ready') || ms[0] || null;
+}
+function renderMyMatch() {
+  const e = $('myMatch'); clear(e); if (isJudge || !myNick) return;
+  const pl = S.players.find(p => p.nick.toLowerCase() === myNick.toLowerCase());
+  if (!pl) { e.textContent = '⚠ Вас нет в списке участников: проверьте ник или попросите судью добавить вас.'; return; }
+  if (S.phase === 'reg') { e.textContent = '✅ Вы в списке участников. После жеребьёвки здесь сам появится ваш матч.'; return; }
+  const m = myMatch(pl);
+  if (!m) {
+    const ex = allMatches(S).find(x => x.kind === 'exam' && x.status !== 'done' && (x.a === pl.id || x.b === pl.id));
+    e.textContent = ex ? '📝 У вас экзамен у судьи (' + roundLabel(S, ex) + '). Ждите вызова судьи.' : 'Для вас нет активных матчей (вылет или турнир завершён).'; return;
+  }
+  const opp = nick(S, m.a === pl.id ? m.b : m.a);
+  const st = m.status === 'live' ? (S.currentId === m.id ? 'идёт сейчас — отвечайте в панели ниже' : 'идёт, ждите, пока судья выведет его на экран') : m.status === 'ready' ? 'ждёт начала' : 'ждёт соперника';
+  e.textContent = '⚔️ ' + roundLabel(S, m) + ', матч №' + m.num + ': против ' + opp + ' · ' + st + (m.time ? ' · ' + fmtTime(m.time) + ' ' + tz() : '');
+}
 try { myNick = localStorage.getItem('hs-nick') || ''; } catch (e) {}
 // Панель игрока (виден только подключённому участнику своего матча)
 function myPanel(m) {
@@ -1033,7 +1058,7 @@ function renderCurrent() {
     const L = m.live;
     box.appendChild(h('div', { class: 'duel' }, playerCard(m, 'a'), h('div', { class: 'vs' }, 'VS'), playerCard(m, 'b')));
     box.appendChild(h('div', { id: 'rollText', class: 'roll', style: 'font-size:22px;min-height:30px' }));
-    if (m.status === 'ready') box.appendChild(h('div', { class: 'banner' }, 'Матч готов к началу.'));
+    if (m.status === 'ready') box.appendChild(h('div', { class: 'banner' }, 'Матч готов к началу.' + (isJudge ? ' В сети: ' + nick(S, m.a) + (online(nick(S, m.a)) ? ' 🟢' : ' 🔴') + ', ' + nick(S, m.b) + (online(nick(S, m.b)) ? ' 🟢' : ' 🔴') : '')));
     if (m.status === 'live' && L.mode === 'duel' && !L.first) box.appendChild(h('div', { class: 'banner' }, 'Первого спрашивающего определит рандом.'));
     if (m.status === 'live' && L.mode === 'duel' && L.asker) {
       const an = nick(S, m[L.asker]), bn = nick(S, m[other(L.asker)]);
@@ -1090,7 +1115,7 @@ function sideBlock(m, side) {
 function renderControls() {
   const box = $('matchControls'); clear(box);
   $('timerBtns').hidden = !isJudge; box.hidden = !isJudge;
-  $('playerBox').hidden = isJudge;
+  $('playerBox').hidden = isJudge; renderMyMatch();
   const m0 = curMatch(), ph = m0 && m0.status === 'live' && m0.live ? m0.live.phase : null;
   let note = ph === 'ask' ? '✍️ Время на формулировку вопроса' : ph === 'answer' ? '🧠 Время на ответ' : '';
   if (!isJudge && !net.ok) note = 'Нет связи с судьёй: таймер статичен, показано сохранённое состояние.';
@@ -1163,7 +1188,7 @@ function renderJudge() {
   $('btnUndo').disabled = !undoStack.length; $('btnClear').disabled = !reg;
   const tb = $('judgeList'); clear(tb);
   S.players.forEach(p => tb.appendChild(h('tr', null,
-    h('td', null, S.seeds[p.id] ? '#' + S.seeds[p.id] : ''), h('td', null, p.nick),
+    h('td', null, S.seeds[p.id] ? '#' + S.seeds[p.id] : ''), h('td', null, p.nick + (online(p.nick) ? ' 🟢 в сети' : '')),
     h('td', { style: 'text-align:right;white-space:nowrap' },
       h('button', { class: 'btn ghost sm', onclick: () => renameP(p) }, '✏'), ' ',
       h('button', { class: 'btn ghost sm', disabled: !reg, onclick: () => { if (confirm('Удалить ' + p.nick + '?')) act(() => { S.players = S.players.filter(x => x.id !== p.id); }); } }, '🗑')))));
@@ -1240,7 +1265,7 @@ function bindStatic() {
     const n = $('myNickIn').value.trim();
     if (!isValidNick(n)) { showMsg('myMsg', 'Неверный формат ника (Имя_Фамилия).', false); return; }
     myNick = n; try { localStorage.setItem('hs-nick', n); } catch (e) {}
-    if (net.conn && net.conn.open) net.conn.send({ t: 'hello', nick: n }); else showMsg('myMsg', 'Нет связи с судьёй — подключение при появлении связи.', false);
+    if (net.conn && net.conn.open) net.conn.send({ t: 'hello', nick: n }); else { showMsg('myMsg', 'Подключаюсь к судье…', true); netRestart(); }
   });
   $('myNickIn').value = myNick;
   // таймер
