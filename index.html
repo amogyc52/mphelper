@@ -184,6 +184,7 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
     <div class="row"><button class="btn ghost sm" id="lobbyCopyId">Скопировать ID</button><button class="btn ghost sm" id="lobbyCopyLink">Скопировать ссылку для игроков</button></div>
     <p id="lobbyCount" class="small"></p>
     <button class="btn big" id="btnStartBig">🎲 Начать турнир</button>
+    <button class="btn warn big" id="btnFinishBig" hidden>🏁 Завершить турнир</button>
   </div>
   <ul class="plist" id="lobbyList"></ul>
 </section>
@@ -286,6 +287,7 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
       <h3>Турнир</h3>
       <div class="row">
         <button class="btn" id="btnStart">🎲 Начать турнир</button>
+        <button class="btn warn" id="btnFinish">🏁 Завершить турнир</button>
         <button class="btn danger" id="btnReset">Сбросить турнир</button>
       </div>
       <div class="sub"><b>🔑 Комната (P2P)</b>
@@ -336,7 +338,7 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
   </div>
 </section>
 
-<footer>Хелпер-перестрелка · Rodina RP · Судья: <span id="footJudge"></span> · версия 6 (вопросы судьи)</footer>
+<footer>Хелпер-перестрелка · Rodina RP · Судья: <span id="footJudge"></span> · версия 7 (завершение турнира)</footer>
 </div>
 
 <!-- Модалка жеребьёвки -->
@@ -361,6 +363,14 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
         <button class="btn" type="submit">Войти</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal" id="askModal" hidden>
+  <div class="box">
+    <h2>Подтверждение</h2>
+    <p id="askText"></p>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="askNo">Отмена</button><button class="btn" id="askYes">Да</button></div>
   </div>
 </div>
 
@@ -691,6 +701,17 @@ function judgeAnswerText(st, m, side, text) {
   if (m.kind === 'exam') { if (L.aText) return false; L.aText = text; log(st, m, nick(st, L.pid) + ' отправил ответ: «' + text + '»'); return true; }
   if (L.jq.aT[side]) return false;
   L.jq.aT[side] = text; log(st, m, nick(st, m[side]) + ' отправил ответ: «' + text + '»'); return true;
+}
+// Ручное завершение: закрывает все незавершённые матчи и ставит статус «Турнир завершён».
+function finishTournament(st) {
+  allMatches(st).forEach(m => {
+    if (m.status === 'done') return;
+    m.status = 'done'; if (!m.kind) m.kind = 'void';
+    m.res = m.res || 'Закрыт судьёй при завершении турнира';
+    if (m.live) m.live.mode = 'done';
+    log(st, m, 'Матч закрыт судьёй: турнир завершён');
+  });
+  st.phase = 'done'; st.regOpen = false;
 }
 const REASONS = { time: 'время вышло', wrong: 'неверный ответ', idk: 'ответ «не знаю»' };
 function duelLose(st, m, side, reasonKey, ms) {
@@ -1172,7 +1193,7 @@ function myPanel(m) {
   if (!side || !linked()) return null;
   const ta = h('textarea', { id: 'myTa', maxlength: 500, placeholder: 'Текст…' }); ta.value = draft;
   ta.addEventListener('input', () => { draft = ta.value; });
-  const send = (t, ok) => () => { if (t !== 'idk' && !ta.value.trim()) return; if (t === 'idk' && !confirm('«Не знаю» — это поражение. Уверены?')) return; netSend({ t: t, text: ta.value }); draft = ''; };
+  const send = (t, ok) => () => { if (t !== 'idk' && !ta.value.trim()) return; const go = () => { netSend({ t: t, text: ta.value }); draft = ''; }; if (t === 'idk') ask('«Не знаю» — это поражение. Уверены?', go); else go(); };
   if (m.kind === 'exam' || L.mode === 'judge') {   // вопрос задаёт судья
     const exam = m.kind === 'exam', sent = exam ? L.aText : L.jq.aT[side];
     if (L.phase === 'answer' && !sent && (exam || L.jq[side] === null))
@@ -1250,7 +1271,12 @@ function verdict(fn) {
   const m = curMatch(); if (m && isLive(m) && m.kind === 'duel' && m.live.mode === 'judge' && m.live.phase === 'answer') return;   // второй ещё отвечает
   phaseTimer(false);
 }
-function confirmDo(text, fn) { if (confirm(text)) verdict(fn); }
+function ask(text, yes) {
+  $('askText').textContent = text; $('askModal').hidden = false;
+  $('askYes').onclick = () => { $('askModal').hidden = true; yes(); };
+  $('askNo').onclick = () => { $('askModal').hidden = true; };
+}
+function confirmDo(text, fn) { ask(text, () => verdict(fn)); }
 
 function sideBlock(m, side) {
   const n = nick(S, m[side]);
@@ -1332,7 +1358,7 @@ function renderResults() {
   if (S.third) { if (S.third.status === 'done' && r.thirds.length) items.push(pod('', '🥉', '3 место', r.thirds[0])); else if (S.phase !== 'done') items.push(h('div', { class: 'pod' }, h('div', { class: 'm' }, '🥉'), h('div', { class: 'small muted' }, '3 место'), h('div', { class: 'n' }, 'решается…'))); }
   else r.thirds.forEach(p => items.push(pod('', '🥉', '3 место (полуфиналист)', p)));
   box.appendChild(h('div', { class: 'podium' }, items));
-  if (!r.champion) box.appendChild(h('p', { class: 'muted small' }, 'Финалист не прошёл экзамен — победитель не определён, решение за судьёй.'));
+  if (!r.champion) box.appendChild(h('p', { class: 'muted small' }, 'Победитель не определён (финал не сыгран или финалист не прошёл экзамен) — решение за судьёй.'));
 }
 
 // ---------- рендер: панель судьи ----------
@@ -1342,7 +1368,7 @@ function renderJudge() {
   if (!isJudge) return;
   $('roomId').textContent = ROOM_ID || '—';
   const reg = S.phase === 'reg';
-  $('btnStart').disabled = !reg; $('optThird').checked = !!S.thirdPlace; $('optThird').disabled = !reg;
+  $('btnStart').disabled = !reg; $('btnFinish').disabled = S.phase !== 'live'; $('optThird').checked = !!S.thirdPlace; $('optThird').disabled = !reg;
   $('btnReg').textContent = S.regOpen ? 'Закрыть регистрацию' : 'Открыть регистрацию'; $('btnReg').disabled = !reg;
   setIfIdle($('examQ'), S.settings.examQuestions); setIfIdle($('examNeed'), S.settings.examNeed); setIfIdle($('tzInput'), S.settings.tz);
   $('btnUndo').disabled = !undoStack.length; $('btnClear').disabled = !reg;
@@ -1351,7 +1377,7 @@ function renderJudge() {
     h('td', null, S.seeds[p.id] ? '#' + S.seeds[p.id] : ''), h('td', null, p.nick + (online(p.nick) ? ' 🟢 в сети' : '')),
     h('td', { style: 'text-align:right;white-space:nowrap' },
       h('button', { class: 'btn ghost sm', onclick: () => renameP(p) }, '✏'), ' ',
-      h('button', { class: 'btn ghost sm', disabled: !reg, onclick: () => { if (confirm('Удалить ' + p.nick + '?')) act(() => { S.players = S.players.filter(x => x.id !== p.id); }); } }, '🗑')))));
+      h('button', { class: 'btn ghost sm', disabled: !reg, onclick: () => { ask('Удалить ' + p.nick + '?', () => { act(() => { S.players = S.players.filter(x => x.id !== p.id); }); }); } }, '🗑')))));
 }
 function renameP(p) {
   const v = prompt('Новый ник (Имя_Фамилия):', p.nick); if (v === null) return;
@@ -1377,7 +1403,7 @@ function renderLobby() {
   const n = S.players.length, reg = S.phase === 'reg';
   $('roomId2').textContent = ROOM_ID || '—';
   $('lobbyCount').textContent = 'Участников: ' + n + ' · сейчас в сети: ' + S.players.filter(p => online(p.nick)).length;
-  $('btnStartBig').disabled = !reg || n < 2;
+  $('btnStartBig').disabled = !reg || n < 2; $('btnStartBig').hidden = !reg; $('btnFinishBig').hidden = S.phase !== 'live';
   $('btnStartBig').textContent = !reg ? 'Турнир уже идёт' : (n < 2 ? 'Нужно минимум 2 участника' : '🎲 Начать турнир (' + n + ')');
 }
 function render() {
@@ -1471,16 +1497,19 @@ function bindStatic() {
 
   // турнир
   $('btnStart').addEventListener('click', startDraw); $('btnStartBig').addEventListener('click', startDraw);
+  const doFinish = () => ask('Завершить турнир? Все незавершённые матчи будут закрыты. Победитель определяется только по сыгранному финалу.', () => { act(() => { finishTournament(S); }); timerReset(); location.hash = '#results'; });
+  $('btnFinish').addEventListener('click', doFinish); $('btnFinishBig').addEventListener('click', doFinish);
   $('lobbyCopyId').addEventListener('click', e => copyText(ROOM_ID, e.target));
   $('lobbyCopyLink').addEventListener('click', e => copyText(location.href.split(/[?#]/)[0] + '?room=' + ROOM_ID, e.target));
   $('myNickIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('myNickBtn').click(); });
   $('drawClose').addEventListener('click', () => { $('drawModal').hidden = true; });
   $('btnReset').addEventListener('click', () => {
-    if (!confirm('Сбросить турнир? Сетка, результаты, расписание и логи будут удалены. Список участников сохранится.')) return;
+    ask('Сбросить турнир? Сетка, результаты, расписание и логи будут удалены. Список участников сохранится.', () => {
     act(() => { const keep = S.players, nid = S.nextId, set = S.settings, third = S.thirdPlace; S = emptyState(); S.players = keep; S.nextId = nid; S.settings = set; S.thirdPlace = third; });
     timerReset();
+    });
   });
-  $('btnClear').addEventListener('click', () => { if (confirm('Удалить ВСЕХ участников?')) act(() => { S.players = []; }); });
+  $('btnClear').addEventListener('click', () => { ask('Удалить ВСЕХ участников?', () => { act(() => { S.players = []; }); }); });
   $('btnReg').addEventListener('click', () => act(() => { S.regOpen = !S.regOpen; }));
   $('optThird').addEventListener('change', e => { const v = e.target.checked; act(() => { S.thirdPlace = v; }); });
   $('examQ').addEventListener('change', e => act(() => { S.settings.examQuestions = clamp(e.target.value, 1, 30); S.settings.examNeed = clamp(S.settings.examNeed, 0, S.settings.examQuestions); }));
@@ -1488,8 +1517,7 @@ function bindStatic() {
   $('tzInput').addEventListener('change', e => act(() => { S.settings.tz = e.target.value.trim() || TIMEZONE_LABEL; }));
   $('btnUndo').addEventListener('click', undo);
   $('btnRoomNew').addEventListener('click', () => {
-    if (!confirm('Сгенерировать новый ID? Подключённые игроки потеряют связь и должны будут ввести новый ID.')) return;
-    applyRoom(genRoom()); netRestart(); renderJudge();
+    ask('Сгенерировать новый ID? Подключённые игроки потеряют связь и должны будут ввести новый ID.', () => { applyRoom(genRoom()); netRestart(); renderJudge(); });
   });
   $('btnRoomCopy').addEventListener('click', e => copyText(ROOM_ID, e.target));
   $('btnRoomLink').addEventListener('click', e => copyText(location.href.split(/[?#]/)[0] + '?room=' + ROOM_ID, e.target));
@@ -1517,9 +1545,7 @@ function bindStatic() {
   $('btnImportState').addEventListener('click', () => {
     try {
       const st = parseStateText($('stateText').value);
-      if (!confirm('Заменить текущее живое состояние импортированным?')) return;
-      act(() => { S = st; });
-      showMsg('stateMsg', 'Состояние импортировано.', true);
+      ask('Заменить текущее живое состояние импортированным?', () => { act(() => { S = st; }); showMsg('stateMsg', 'Состояние импортировано.', true); });
     } catch (er) { showMsg('stateMsg', 'Ошибка импорта: ' + er.message, false); }
   });
   window.addEventListener('resize', drawLines);
