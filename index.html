@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Хелпер-перестрелка — турнир Rodina RP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&family=Russo+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#090d0a; --card:#131b15; --card2:#1a251d; --line:#27372b;
+  --text:#e8f1ea; --muted:#8fa395; --acc:#2ee56f; --acc-d:#16a04a;
+  --red:#ff4d5a; --warn:#ffb340; --r:14px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;color:var(--text);font-family:'Rubik',system-ui,sans-serif;line-height:1.5;
+  background:radial-gradient(900px 500px at 85% -10%,#12391f66,transparent),radial-gradient(700px 400px at -10% 20%,#3a121866,transparent),var(--bg);}
+h1,h2,h3{font-family:'Russo One','Rubik',sans-serif;font-weight:400;letter-spacing:.3px;margin:0 0 .6em}
+h1{font-size:clamp(30px,6vw,54px);line-height:1.1}
+h2{font-size:clamp(20px,3.4vw,28px);color:var(--acc)}
+h3{font-size:17px}
+a{color:var(--acc)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+nav{position:sticky;top:0;z-index:50;background:#0b110cee;backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;gap:6px;align-items:center;overflow-x:auto;padding-top:8px;padding-bottom:8px;white-space:nowrap}
+nav a{color:var(--text);text-decoration:none;padding:6px 12px;border-radius:999px;font-size:14px}
+nav a:hover{background:var(--card2)}
+nav .sp{flex:1}
+.hero{padding:44px 0 20px}
+.lead{max-width:760px;color:#c3d3c7;font-size:17px}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.chip{background:var(--card);border:1px solid var(--line);padding:7px 14px;border-radius:999px;font-size:14px}
+.chip.st{border-color:var(--acc);color:var(--acc);font-weight:500}
+.chip.st.live{border-color:var(--red);color:var(--red)}
+.chip.st.done{border-color:var(--warn);color:var(--warn)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin:18px 0}
+.sub{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.btn{background:var(--acc);color:#04210f;border:0;border-radius:10px;padding:9px 15px;font:500 14px 'Rubik',sans-serif;cursor:pointer;transition:.15s}
+.btn:hover{filter:brightness(1.1)}
+.btn:disabled{opacity:.35;cursor:not-allowed;filter:none}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--acc)}
+.btn.danger{background:var(--red);color:#2a0407}
+.btn.warn{background:var(--warn);color:#2d1c00}
+.btn.sm{padding:5px 10px;font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+input[type=text],input[type=number],input[type=password],input[type=datetime-local],textarea,select{
+  background:#0c120d;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font:15px 'Rubik',sans-serif;max-width:100%}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--acc-d);border-color:transparent}
+textarea{width:100%;min-height:90px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+label{font-size:14px;color:#c3d3c7}
+label input[type=number]{width:80px}
+.check{display:flex;gap:8px;align-items:center;margin:8px 0}
+.notice{background:#13281a;border:1px solid var(--acc-d);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:10px}
+.msg{font-size:14px;margin-top:6px;white-space:pre-wrap}
+.msg.err{color:var(--red)} .msg.ok{color:var(--acc)}
+.codebox{margin-top:12px;background:#0c120d;border:1px dashed var(--acc);border-radius:10px;padding:12px}
+.codebox code{display:block;word-break:break-all;font-size:16px;color:var(--acc);margin:6px 0}
+/* участники */
+.plist{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.plist li{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:5px 11px;font-size:14px;display:flex;gap:8px;align-items:center}
+.plist li.out{opacity:.4;text-decoration:line-through}
+.seed{background:var(--acc);color:#04210f;border-radius:6px;font-size:12px;font-weight:700;min-width:22px;text-align:center;padding:1px 5px}
+/* сетка */
+.bracket-scroll{overflow-x:auto;padding-bottom:12px}
+.bracket-inner{position:relative;width:max-content;min-width:100%;padding:4px 2px}
+#bracketSvg{position:absolute;left:0;top:0;pointer-events:none;z-index:0}
+#bracketSvg path{fill:none;stroke:#2f6a43;stroke-width:2}
+.cols{display:flex;gap:64px;align-items:stretch;position:relative;z-index:1}
+.col{display:flex;flex-direction:column;width:216px}
+.col-title{text-align:center;font-family:'Russo One',sans-serif;color:var(--muted);font-size:14px;margin-bottom:8px;text-transform:uppercase}
+.col-matches{flex:1;display:flex;flex-direction:column;justify-content:space-around}
+.match{margin:7px 0;background:#0e150f;border:1px solid var(--line);border-radius:10px;padding:6px;position:relative}
+.match.cur{border-color:var(--acc);box-shadow:0 0 0 2px #2ee56f33}
+.match.live::after{content:'●';position:absolute;right:8px;top:4px;color:var(--red);font-size:11px;animation:blink 1.2s infinite}
+.match.clickable{cursor:pointer}
+.match.clickable:hover{border-color:var(--acc-d)}
+.mhead{font-size:11px;color:var(--muted);padding:0 4px 4px;display:flex;justify-content:space-between;gap:6px}
+.slot{display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#1c6b36,#21803f);border-radius:7px;padding:6px 9px;margin-top:4px;font-size:14px;font-weight:500;min-height:32px}
+.slot .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot .seed{background:#0b2b16;color:var(--acc)}
+.slot.wait{background:#1a241c;color:var(--muted);font-weight:400}
+.slot.judge{background:linear-gradient(90deg,#6e5410,#8a6a14);color:#fff3cc}
+.slot.win{box-shadow:inset 0 0 0 2px var(--acc)}
+.slot.lose{opacity:.35;filter:grayscale(.7)}
+@keyframes blink{50%{opacity:.2}}
+/* расписание */
+.sched{display:grid;gap:8px}
+.srow{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.srow.cur{border-color:var(--acc)}
+.srow .when{font-size:14px;color:var(--acc)}
+.badge{font-size:12px;border-radius:999px;padding:2px 9px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.live{color:var(--red);border-color:var(--red)} .badge.done{color:var(--warn);border-color:var(--warn)} .badge.ready{color:var(--acc);border-color:var(--acc)}
+@media(max-width:700px){.srow{grid-template-columns:1fr}}
+/* правила */
+ol.rules{padding-left:22px;margin:0} ol.rules li{margin:6px 0}
+.topics{display:flex;flex-wrap:wrap;gap:8px}
+.topics span{border:1px solid var(--acc-d);color:var(--acc);border-radius:999px;padding:4px 12px;font-size:14px}
+/* текущий матч */
+.duel{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:stretch}
+@media(max-width:700px){.duel{grid-template-columns:1fr}.duel .vs{display:none}}
+.pcard{background:var(--card2);border:2px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+.pcard.ask{border-color:var(--acc);box-shadow:0 0 18px #2ee56f33}
+.pcard.ans{border-color:#3b4b3f}
+.pcard.lost{opacity:.4}
+.pcard .pn{font-family:'Russo One',sans-serif;font-size:21px;word-break:break-all}
+.pcard .role{font-size:13px;color:var(--muted);min-height:20px}
+.pcard .cnt{font-size:34px;font-family:'Russo One',sans-serif;color:var(--acc)}
+.vs{align-self:center;font-family:'Russo One',sans-serif;color:var(--red);font-size:22px}
+.timer{font-family:'Russo One',monospace;font-size:clamp(64px,16vw,130px);text-align:center;line-height:1;margin:14px 0 6px;letter-spacing:2px}
+.timer.warn{color:var(--warn)} .timer.danger{color:var(--red)} .timer.over{color:var(--red);animation:blink .6s infinite}
+.banner{background:#13281a;border:1px solid var(--acc-d);border-radius:10px;padding:9px 12px;margin:10px 0;text-align:center}
+.banner.red{background:#2a1215;border-color:var(--red)}
+.logbox{background:#0c120d;border:1px solid var(--line);border-radius:10px;padding:10px;font:13px ui-monospace,Consolas,monospace;max-height:260px;overflow:auto;white-space:pre-wrap;margin:0}
+.ctl{border-top:1px dashed var(--line);margin-top:14px;padding-top:6px}
+.ctl h3{margin-top:10px}
+.sidebox{background:#0c120d;border:1px solid var(--line);border-radius:10px;padding:10px;flex:1;min-width:230px}
+/* итоги */
+.podium{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.pod{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}
+.pod .m{font-size:34px}.pod .n{font-family:'Russo One',sans-serif;font-size:20px;word-break:break-all}
+.pod.gold{border-color:var(--warn)}
+/* модалки */
+.modal{position:fixed;inset:0;background:#000c;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal .box{background:var(--card);border:1px solid var(--acc-d);border-radius:var(--r);padding:22px;max-width:520px;width:100%;max-height:90vh;overflow:auto}
+.roll{font-family:'Russo One',sans-serif;font-size:30px;text-align:center;color:var(--acc);min-height:48px;word-break:break-all}
+.dlist{margin:10px 0;padding:0;list-style:none;display:grid;gap:5px}
+.dlist li{background:var(--card2);border-radius:8px;padding:5px 10px;font-size:14px;display:flex;gap:8px;align-items:center}
+.dlist li .tag{margin-left:auto;font-size:12px;color:var(--warn)}
+table.jl{width:100%;border-collapse:collapse;font-size:14px}
+table.jl td{padding:5px 6px;border-bottom:1px solid var(--line)}
+footer{padding:30px 0 50px;color:var(--muted);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a href="#top">🏁 Турнир</a><a href="#registration">Регистрация</a><a href="#bracket">Сетка</a>
+  <a href="#schedule">Расписание</a><a href="#rules">Правила</a><a href="#current">Текущий матч</a><a href="#results">Итоги</a>
+  <span class="sp"></span>
+  <a href="#" id="judgeBtn" style="border:1px solid var(--line)">🔐 Судья</a>
+</div></nav>
+
+<div class="wrap">
+
+<header class="hero" id="top">
+  <h1>Хелпер-<span style="color:var(--acc)">перестрелка</span></h1>
+  <p class="lead">Турнир на вылет между хелперами проекта <b>Rodina RP</b> (CRMP). Вопрос — ответ на время: пока один из хелперов не ошибётся, не ответит вовремя или не скажет «не знаю». Проигравший вылетает, победитель идёт дальше.</p>
+  <div class="chips">
+    <span class="chip">🏆 Приз: <b id="prizeText"></b></span>
+    <span class="chip">⚖️ Судья: <b id="judgeName"></b></span>
+    <span class="chip st" id="statusChip">…</span>
+    <span class="chip">👥 Участников: <b id="countText">0</b></span>
+  </div>
+</header>
+
+<section class="card" id="registration">
+  <h2>Регистрация и участники</h2>
+  <div class="grid2">
+    <div>
+      <h3>Подать заявку</h3>
+      <p class="muted small">Введите игровой ник в формате <b>Имя_Фамилия</b> (латиница, цифры, подчёркивание). Вы получите короткий код — вставьте его в свою тему на форуме. Судья перенесёт ваш ник в список.</p>
+      <form id="regForm" class="row" autocomplete="off">
+        <input type="text" id="nickInput" placeholder="Nick_Name" maxlength="32" spellcheck="false">
+        <button class="btn" id="regSubmit" type="submit">Получить код</button>
+      </form>
+      <div class="msg" id="regMsg"></div>
+      <div class="codebox" id="codeBox" hidden>
+        <div class="small muted">Ваш код заявки — вставьте его в тему на форуме:</div>
+        <code id="codeText"></code>
+        <button class="btn sm" id="copyCode" type="button">Скопировать код</button>
+      </div>
+    </div>
+    <div>
+      <h3>Список участников</h3>
+      <ul class="plist" id="plist"></ul>
+      <p class="muted small" id="plistEmpty">Пока никого нет.</p>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="bracket">
+  <h2>Турнирная сетка</h2>
+  <p class="muted small" id="bracketEmpty">Сетка появится после жеребьёвки.</p>
+  <div class="bracket-scroll" id="bracketScroll" hidden>
+    <div class="bracket-inner" id="bracketInner">
+      <svg id="bracketSvg" width="0" height="0"></svg>
+      <div class="cols" id="bracketCols"></div>
+    </div>
+  </div>
+  <div id="thirdBox"></div>
+  <div id="drawBox"></div>
+</section>
+
+<section class="card" id="schedule">
+  <h2>Расписание матчей</h2>
+  <p class="muted small">Время указано по: <b id="tzText"></b></p>
+  <div class="sched" id="schedList"></div>
+  <p class="muted small" id="schedEmpty">Расписание появится после жеребьёвки.</p>
+</section>
+
+<section class="card" id="rules">
+  <h2>Правила и разрешённые темы</h2>
+  <h3>Разрешённые темы</h3>
+  <div class="topics"><span>Игровой</span><span>Ответы на репорт</span><span>Наказания</span><span>Правила администрации / проекта</span></div>
+  <h3 style="margin-top:18px">Правила</h3>
+  <ol class="rules">
+    <li>Матчи проходят на сайте, за ходом следит судья.</li>
+    <li>Вопросы только по разрешённым темам: Игровой, ответы на репорт, наказания, правила администрации/проекта.</li>
+    <li>Вопрос должен иметь чёткий ответ, который судья может проверить. Каверзные вопросы и вопросы вне тем запрещены.</li>
+    <li>Первого спрашивающего определяет рандом (публично).</li>
+    <li>На ответ 1 минута. Уточнить вопрос можно, время при этом не останавливается.</li>
+    <li>Проигрыш: время вышло, ответ неверный, ответа нет или «не знаю».</li>
+    <li>Вопросы нельзя повторять. Если судья отклонил вопрос, нужно придумать новый. После 3 отклонённых подряд засчитывается поражение.</li>
+    <li>Лимит: 10 вопросов от каждого. Если никто не проиграл, судья задаёт обоим сложные вопросы по админке до первой ошибки.</li>
+    <li>Участник без пары проходит экзамен: судья задаёт ему вопросы, при провале он вылетает.</li>
+    <li>Решение судьи окончательное.</li>
+    <li>Проигравший вылетает, победитель проходит дальше.</li>
+  </ol>
+</section>
+
+<section class="card" id="current">
+  <h2>Текущий матч</h2>
+  <div id="currentBox"></div>
+  <div class="timer" id="timerDisplay">01:00</div>
+  <p class="muted small" style="text-align:center" id="timerNote"></p>
+  <div class="row" id="timerBtns" style="justify-content:center" hidden>
+    <button class="btn" id="tStart">▶ Старт</button>
+    <button class="btn warn" id="tStop">⏸ Стоп</button>
+    <button class="btn ghost" id="tReset">↺ Сброс</button>
+  </div>
+  <div class="ctl" id="matchControls" hidden></div>
+  <h3 style="margin-top:18px">Лог матча</h3>
+  <pre class="logbox" id="logBox"></pre>
+  <div class="row"><button class="btn ghost sm" id="copyLog">Скопировать лог для форума</button></div>
+</section>
+
+<section class="card" id="results">
+  <h2>Итоги</h2>
+  <div id="resultsBox"></div>
+</section>
+
+<!-- ===================== ПАНЕЛЬ СУДЬИ ===================== -->
+<section class="card" id="judge" hidden>
+  <h2>⚙ Панель судьи</h2>
+  <div class="notice">
+    Вы видите <b>живое состояние</b> (оно хранится в localStorage вашего браузера и не теряется при обновлении страницы).
+    Зрители видят только объект <code>TOURNAMENT_STATE</code> из файла. Чтобы опубликовать изменения: «Экспорт состояния» → вставить код в index.html → перезалить сайт.
+    Управление самим матчем — в блоке «Текущий матч» выше (кнопки появляются там же).
+  </div>
+  <div class="grid2">
+    <div class="sub">
+      <h3>Турнир</h3>
+      <div class="row">
+        <button class="btn" id="btnStart">🎲 Начать турнир</button>
+        <button class="btn danger" id="btnReset">Сбросить турнир</button>
+      </div>
+      <label class="check"><input type="checkbox" id="optThird"> Играть матч за 3-е место (до жеребьёвки)</label>
+      <div class="row"><button class="btn ghost" id="btnReg">Закрыть регистрацию</button></div>
+      <h3>Экзамен (участник без пары)</h3>
+      <div class="row">
+        <label>Вопросов <input type="number" id="examQ" min="1" max="30"></label>
+        <label>Верных для прохода <input type="number" id="examNeed" min="0" max="30"></label>
+      </div>
+      <div class="muted small">0 в поле «Верных» = нужно ответить на все. Настройки применяются к экзаменам, которые ещё не начаты.</div>
+      <h3 style="margin-top:12px">Часовой пояс расписания</h3>
+      <input type="text" id="tzInput" maxlength="40">
+      <div class="row">
+        <button class="btn ghost" id="btnUndo">↩ Отменить последнее действие</button>
+        <button class="btn ghost" id="btnLogout">Выйти из режима судьи</button>
+      </div>
+    </div>
+    <div class="sub">
+      <h3>Участники</h3>
+      <div class="muted small">Добавить ники (по одному на строку):</div>
+      <textarea id="addNicks" placeholder="Ivan_Ivanov&#10;Petr_Petrov"></textarea>
+      <div class="row"><button class="btn" id="btnAdd">Добавить в список</button></div>
+      <div class="muted small" style="margin-top:8px">Импорт заявок (коды вида HP-…, можно сразу пачкой):</div>
+      <textarea id="importCodes" placeholder="HP-JFZGS43...-A1"></textarea>
+      <div class="row"><button class="btn" id="btnImport">Импорт заявок</button><button class="btn ghost" id="btnClear">Очистить список</button></div>
+      <div class="msg" id="addMsg"></div>
+    </div>
+  </div>
+  <div class="sub">
+    <h3>Список участников</h3>
+    <table class="jl"><tbody id="judgeList"></tbody></table>
+  </div>
+  <div class="sub">
+    <h3>Экспорт / импорт состояния</h3>
+    <textarea id="stateText" style="min-height:140px" placeholder="Нажмите «Экспорт состояния». Для импорта вставьте сюда код (const TOURNAMENT_STATE = {...}; или чистый JSON) и нажмите «Импорт»."></textarea>
+    <div class="row">
+      <button class="btn" id="btnExport">Экспорт состояния</button>
+      <button class="btn ghost" id="btnCopyState">Скопировать</button>
+      <button class="btn ghost" id="btnImportState">Импорт</button>
+    </div>
+    <div class="msg" id="stateMsg"></div>
+  </div>
+</section>
+
+<footer>Хелпер-перестрелка · Rodina RP · Судья: <span id="footJudge"></span></footer>
+</div>
+
+<!-- Модалка жеребьёвки -->
+<div class="modal" id="drawModal" hidden>
+  <div class="box">
+    <h2 id="drawTitle">Жеребьёвка</h2>
+    <div class="roll" id="drawRoll"></div>
+    <ul class="dlist" id="drawList"></ul>
+    <div class="row" style="justify-content:flex-end"><button class="btn" id="drawClose" hidden>Закрыть</button></div>
+  </div>
+</div>
+
+<!-- Модалка входа судьи -->
+<div class="modal" id="loginModal" hidden>
+  <div class="box">
+    <h2>Вход для судьи</h2>
+    <form id="loginForm">
+      <input type="password" id="loginPass" placeholder="Пароль" style="width:100%" autocomplete="off">
+      <div class="msg err" id="loginErr"></div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn ghost" type="button" id="loginCancel">Отмена</button>
+        <button class="btn" type="submit">Войти</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   НАСТРОЙКИ — ЗДЕСЬ СУДЬЕ МОЖНО ЧТО-ТО МЕНЯТЬ
+   ===================================================================== */
+
+// ПАРОЛЬ СУДЬИ. ОБЯЗАТЕЛЬНО ПОМЕНЯЙТЕ!
+// Важно: сайт без сервера, пароль лежит в коде страницы и защищает только от случайных
+// нажатий. Реально «править» турнир для зрителей можно только через перезаливку файла,
+// поэтому подделать результаты для других посетителей никто не сможет.
+const JUDGE_PASSWORD = 'change-me-please';
+
+const JUDGE_NAME     = 'Dima_Kostrov';                 // ник судьи
+const PRIZE_TEXT     = 'зависит от вашего раунда';     // приз (текст в шапке)
+const TIMEZONE_LABEL = 'МСК (UTC+3)';                  // часовой пояс по умолчанию для расписания
+const QUESTION_LIMIT = 10;                             // лимит вопросов от каждого участника
+const MAX_REJECTS    = 3;                              // отклонённых вопросов подряд до поражения
+const ANSWER_SECONDS = 60;                             // время на ответ
+const STORAGE_KEY    = 'helper-shootout-state-v1';     // ключ localStorage судьи
+
+/* =====================================================================
+   СОСТОЯНИЕ ДЛЯ ЗРИТЕЛЕЙ
+   ---------------------------------------------------------------------
+   Как это работает (без сервера):
+   • Судья в режиме судьи работает с «живым» состоянием, которое лежит в localStorage
+     его браузера. Оно сохраняется после каждого действия.
+   • Все остальные посетители видят ТОЛЬКО объект TOURNAMENT_STATE ниже.
+   • Чтобы показать зрителям свежий ход турнира: панель судьи → «Экспорт состояния» →
+     «Скопировать» → заменить в index.html весь блок `const TOURNAMENT_STATE = {...};`
+     на скопированный → перезалить файл на хостинг.
+   ===================================================================== */
+const TOURNAMENT_STATE = {
+  "v": 1, "phase": "reg", "regOpen": true, "thirdPlace": false, "nextId": 1,
+  "players": [],
+  "settings": { "examQuestions": 3, "examNeed": 0, "tz": "МСК (UTC+3)" },
+  "draw": null, "seeds": {}, "rounds": [], "third": null, "currentId": null, "log": {}
+};
+
+/* =====================================================================
+   ЯДРО ТУРНИРА (без работы с DOM — чистая логика)
+   ===================================================================== */
+
+function emptyState() {
+  return {
+    v: 1, phase: 'reg', regOpen: true, thirdPlace: false, nextId: 1,
+    players: [], settings: { examQuestions: 3, examNeed: 0, tz: TIMEZONE_LABEL },
+    draw: null, seeds: {}, rounds: [], third: null, currentId: null, log: {}
+  };
+}
+function normalize(st) {
+  const base = emptyState();
+  const out = Object.assign(base, st || {});
+  out.settings = Object.assign(emptyState().settings, (st && st.settings) || {});
+  if (!Array.isArray(out.players)) out.players = [];
+  if (!Array.isArray(out.rounds)) out.rounds = [];
+  if (!out.log || typeof out.log !== 'object') out.log = {};
+  if (!out.seeds || typeof out.seeds !== 'object') out.seeds = {};
+  return out;
+}
+function rnd(n) { // честный случайный индекс 0..n-1
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const a = new Uint32Array(1), lim = Math.floor(4294967296 / n) * n;
+    let x; do { crypto.getRandomValues(a); x = a[0]; } while (x >= lim);
+    return x % n;
+  }
+  return Math.floor(Math.random() * n);
+}
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
+}
+function pow2ceil(n) { let s = 1; while (s < n) s *= 2; return s; }
+function clamp(v, lo, hi) { v = Number(v); if (!isFinite(v)) v = lo; return Math.max(lo, Math.min(hi, Math.floor(v))); }
+
+// Название раунда по числу участников в его начале: 2 -> Финал, 4 -> Полуфинал, 8 -> 1/4 ...
+function roundName(n) { if (n === 2) return 'Финал'; if (n === 4) return 'Полуфинал'; return '1/' + (n / 2); }
+function roundLabel(st, m) { return m.r === 'T' ? 'Матч за 3-е место' : roundName(st.draw.size / Math.pow(2, m.r)); }
+
+function pById(st, id) { return st.players.find(p => p.id === id) || null; }
+function nick(st, id) { const p = pById(st, id); return p ? p.nick : '—'; }
+function allMatches(st) { const a = []; st.rounds.forEach(r => r.forEach(m => a.push(m))); if (st.third) a.push(st.third); return a; }
+function findMatch(st, id) { return allMatches(st).find(m => m.id === id) || null; }
+function other(s) { return s === 'a' ? 'b' : 'a'; }
+
+// ---------- ники и коды заявок ----------
+const NICK_RE = /^[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+$/;
+function isValidNick(n) { return typeof n === 'string' && n.length >= 5 && n.length <= 32 && NICK_RE.test(n); }
+function hasNick(st, n, exceptId) { const k = n.toLowerCase(); return st.players.some(p => p.id !== exceptId && p.nick.toLowerCase() === k); }
+
+const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function b32enc(s) {
+  let bits = 0, val = 0, out = '';
+  for (let i = 0; i < s.length; i++) {
+    val = (val << 8) | (s.charCodeAt(i) & 255); bits += 8;
+    while (bits >= 5) { out += B32[(val >>> (bits - 5)) & 31]; bits -= 5; }
+  }
+  if (bits > 0) out += B32[(val << (5 - bits)) & 31];
+  return out;
+}
+function b32dec(s) {
+  let bits = 0, val = 0, out = '';
+  for (let i = 0; i < s.length; i++) {
+    const k = B32.indexOf(s[i]); if (k < 0) return null;
+    val = (val << 5) | k; bits += 5;
+    if (bits >= 8) { out += String.fromCharCode((val >>> (bits - 8)) & 255); bits -= 8; }
+  }
+  return out;
+}
+function checksum(s) { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1296; return h.toString(36).toUpperCase().padStart(2, '0'); }
+function makeCode(n) { return 'HP-' + b32enc(n) + '-' + checksum(n); }
+function parseCode(code) {
+  const m = /^HP-([A-Z2-7]+)-([0-9A-Z]{2})$/.exec(String(code).toUpperCase());
+  if (!m) return null;
+  const n = b32dec(m[1]);
+  if (!n || checksum(n) !== m[2] || !isValidNick(n)) return null;
+  return n;
+}
+
+// Добавить список ников (по строкам). Возвращает отчёт.
+function addNicks(st, text) {
+  const rep = { added: [], dup: [], bad: [] };
+  String(text).split(/[\r\n,;]+/).map(s => s.trim()).filter(Boolean).forEach(n => {
+    if (!isValidNick(n)) rep.bad.push(n);
+    else if (hasNick(st, n)) rep.dup.push(n);
+    else { st.players.push({ id: st.nextId++, nick: n }); rep.added.push(n); }
+  });
+  return rep;
+}
+function importCodes(st, text) {
+  const tokens = String(text).toUpperCase().match(/HP-[A-Z2-7]+-[0-9A-Z]{2}/g) || [];
+  const rep = { added: [], dup: [], bad: [] };
+  if (!tokens.length && String(text).trim()) rep.bad.push('(коды не найдены)');
+  tokens.forEach(t => {
+    const n = parseCode(t);
+    if (!n) rep.bad.push(t);
+    else if (hasNick(st, n)) rep.dup.push(n);
+    else { st.players.push({ id: st.nextId++, nick: n }); rep.added.push(n); }
+  });
+  return rep;
+}
+
+// ---------- жеребьёвка и сетка ----------
+function makeDraw(st) {
+  const order = shuffle(st.players.map(p => p.id));           // порядок = номера посева 1..N
+  const size = pow2ceil(order.length), m1 = size / 2, byes = size - order.length;
+  const idx = []; for (let i = 0; i < m1; i++) idx.push(i);
+  const byeMatches = shuffle(idx).slice(0, byes).sort((x, y) => x - y); // матчи 1-го раунда, где у участника нет пары
+  return { order: order, size: size, byeMatches: byeMatches };
+}
+function newMatch(id, num, r, i) {
+  return { id: id, num: num, r: r, i: i, a: null, b: null, aRes: false, bRes: false, kind: null,
+           status: 'wait', winner: null, loser: null, res: '', time: '', live: null };
+}
+function applyDraw(st, draw) {
+  const size = draw.size, R = Math.round(Math.log2(size));
+  st.draw = draw; st.rounds = []; st.seeds = {}; st.log = {}; st.currentId = null;
+  draw.order.forEach((id, k) => { st.seeds[id] = k + 1; });
+  let num = 1, k = 0;
+  for (let r = 0; r < R; r++) {
+    const cnt = size / Math.pow(2, r + 1), row = [];
+    for (let i = 0; i < cnt; i++) row.push(newMatch('m' + num, num++, r, i));
+    st.rounds.push(row);
+  }
+  st.rounds[0].forEach((m, i) => {
+    m.a = draw.order[k++];
+    if (draw.byeMatches.indexOf(i) < 0) m.b = draw.order[k++]; // иначе b пуст -> экзамен у судьи
+    m.aRes = m.bRes = true;
+  });
+  st.third = (st.thirdPlace && R >= 2) ? newMatch('t', num, 'T', 0) : null;
+  st.phase = 'live'; st.regOpen = false;
+  propagate(st);
+}
+
+// Раздвигает победителей по сетке и определяет тип каждого матча:
+// duel (двое) / exam (один участник -> экзамен у судьи) / void (никого).
+function propagate(st) {
+  let changed = true;
+  while (changed) {
+    changed = false;
+    st.rounds.forEach((round, r) => {
+      if (r === 0) return;
+      round.forEach((m, i) => {
+        const fa = st.rounds[r - 1][2 * i], fb = st.rounds[r - 1][2 * i + 1];
+        if (!m.aRes && fa.status === 'done') { m.a = fa.winner; m.aRes = true; changed = true; }
+        if (!m.bRes && fb.status === 'done') { m.b = fb.winner; m.bRes = true; changed = true; }
+      });
+    });
+    if (st.third) { // в матч за 3-е место попадают проигравшие ДУЭЛЬ в полуфиналах
+      const semis = st.rounds[st.rounds.length - 2], t = st.third;
+      [0, 1].forEach(j => {
+        const s = semis[j], key = j ? 'b' : 'a';
+        if (!t[key + 'Res'] && s.status === 'done') { t[key] = s.kind === 'duel' ? s.loser : null; t[key + 'Res'] = true; changed = true; }
+      });
+    }
+    allMatches(st).forEach(m => {
+      if (m.aRes && m.bRes && !m.kind) {
+        m.kind = (m.a && m.b) ? 'duel' : ((m.a || m.b) ? 'exam' : 'void');
+        if (m.kind === 'void') { m.status = 'done'; m.res = 'Нет участников'; }
+        else m.status = 'ready';
+        changed = true;
+      }
+    });
+  }
+  const fin = st.rounds.length ? st.rounds[st.rounds.length - 1][0] : null;
+  if (fin && fin.status === 'done' && (!st.third || st.third.status === 'done')) st.phase = 'done';
+}
+
+function results(st) {
+  if (!st.rounds.length) return null;
+  const fin = st.rounds[st.rounds.length - 1][0];
+  const out = { final: fin.status === 'done', champion: null, second: null, thirds: [] };
+  if (out.final) {
+    out.champion = fin.winner;
+    out.second = fin.kind === 'duel' ? fin.loser : null;
+    if (st.third) { if (st.third.status === 'done' && st.third.winner) out.thirds = [st.third.winner]; }
+    else if (st.rounds.length >= 2) {
+      st.rounds[st.rounds.length - 2].forEach(s => { if (s.status === 'done' && s.kind === 'duel') out.thirds.push(s.loser); });
+    }
+  }
+  return out;
+}
+
+function matchTitle(st, m) {
+  const name = side => m[side] ? nick(st, m[side]) : (m[side + 'Res'] ? null : 'Ожидается');
+  if (m.kind === 'exam') return nick(st, m.a || m.b) + ' vs Судья (экзамен)';
+  if (m.kind === 'void') return 'Матч не состоится';
+  return (name('a') || 'Судья (экзамен)') + ' vs ' + (name('b') || 'Судья (экзамен)');
+}
+
+// ---------- лог ----------
+function log(st, m, text) { (st.log[m.id] = st.log[m.id] || []).push({ t: Date.now(), text: text }); }
+function secStr(ms) {
+  if (ms == null) return '';
+  const s = Math.round(ms / 1000);
+  return ' (время ответа ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ')';
+}
+
+// ---------- матч ----------
+function startMatch(st, m) {
+  if (m.status !== 'ready') return false;
+  m.status = 'live';
+  if (m.kind === 'duel') {
+    m.live = { mode: 'duel', asker: null, first: null, q: { a: 0, b: 0 }, rej: { a: 0, b: 0 }, jq: { n: 1, a: null, b: null } };
+    log(st, m, 'Матч начат: ' + nick(st, m.a) + ' vs ' + nick(st, m.b));
+  } else {
+    const tot = clamp(st.settings.examQuestions, 1, 50);
+    const need = st.settings.examNeed > 0 ? Math.min(clamp(st.settings.examNeed, 1, 50), tot) : tot;
+    m.live = { mode: 'exam', pid: m.a || m.b, total: tot, need: need, asked: 0, correct: 0, wrong: 0 };
+    log(st, m, 'Экзамен начат: ' + nick(st, m.live.pid) + '. Вопросов: ' + tot + ', нужно верных: ' + need);
+  }
+  return true;
+}
+function isLive(m) { return m && m.status === 'live'; }
+
+function finishDuel(st, m, loseSide, reason) {
+  const ws = other(loseSide);
+  m.winner = m[ws]; m.loser = m[loseSide]; m.status = 'done'; m.live.mode = 'done';
+  m.res = nick(st, m.winner) + ' победил ' + nick(st, m.loser) + ' — ' + reason;
+  log(st, m, 'Матч завершён. ' + m.res + '.');
+  propagate(st);
+}
+function duelRandom(st, m) {
+  if (!isLive(m) || m.kind !== 'duel' || m.live.mode !== 'duel' || m.live.first) return false;
+  const s = rnd(2) ? 'a' : 'b';
+  m.live.asker = s; m.live.first = s;
+  log(st, m, 'Рандом: первым спрашивает ' + nick(st, m[s]));
+  return true;
+}
+function duelCorrect(st, m, ms) {
+  if (!isLive(m) || m.kind !== 'duel' || m.live.mode !== 'duel' || !m.live.asker) return false;
+  const L = m.live, s = L.asker, o = other(s);
+  L.q[s]++; L.rej[s] = 0;
+  log(st, m, 'Вопрос ' + L.q[s] + '/' + QUESTION_LIMIT + ' от ' + nick(st, m[s]) + ': ' + nick(st, m[o]) + ' ответил верно' + secStr(ms));
+  L.asker = o;
+  if (L.q.a >= QUESTION_LIMIT && L.q.b >= QUESTION_LIMIT) {
+    L.mode = 'judge'; L.asker = null;
+    log(st, m, 'Лимит вопросов исчерпан у обоих. Режим «Вопросы судьи» — до первой ошибки');
+  }
+  return true;
+}
+function duelReject(st, m) {
+  if (!isLive(m) || m.kind !== 'duel' || m.live.mode !== 'duel' || !m.live.asker) return false;
+  const L = m.live, s = L.asker;
+  L.rej[s]++;
+  log(st, m, 'Вопрос от ' + nick(st, m[s]) + ' отклонён судьёй (подряд: ' + L.rej[s] + '/' + MAX_REJECTS + ')');
+  if (L.rej[s] >= MAX_REJECTS) finishDuel(st, m, s, MAX_REJECTS + ' отклонённых вопроса подряд');
+  return true;
+}
+const REASONS = { time: 'время вышло', wrong: 'неверный ответ', idk: 'ответ «не знаю»' };
+function duelLose(st, m, side, reasonKey, ms) {
+  if (!isLive(m) || m.kind !== 'duel') return false;
+  log(st, m, nick(st, m[side]) + ' проиграл: ' + (REASONS[reasonKey] || reasonKey) + secStr(ms));
+  finishDuel(st, m, side, REASONS[reasonKey] || reasonKey);
+  return true;
+}
+function duelWin(st, m, side) {
+  if (!isLive(m) || m.kind !== 'duel') return false;
+  log(st, m, 'Судья засчитал победу: ' + nick(st, m[side]));
+  finishDuel(st, m, other(side), 'победа засчитана судьёй');
+  return true;
+}
+function duelTech(st, m, side) {
+  if (!isLive(m) || m.kind !== 'duel') return false;
+  log(st, m, 'Техническое поражение: ' + nick(st, m[side]) + ' (неявка)');
+  finishDuel(st, m, side, 'техническое поражение соперника (неявка)');
+  return true;
+}
+// «Вопросы судьи»: оба отвечают на один вопрос; ошибся только один — проиграл.
+function judgeAnswer(st, m, side, ok, ms) {
+  if (!isLive(m) || m.kind !== 'duel' || m.live.mode !== 'judge') return false;
+  const jq = m.live.jq;
+  if (jq[side] !== null) return false;
+  jq[side] = ok;
+  log(st, m, 'Вопрос судьи №' + jq.n + ': ' + nick(st, m[side]) + ' — ' + (ok ? 'верно' : 'неверно') + secStr(ms));
+  if (jq.a !== null && jq.b !== null) {
+    if (jq.a === jq.b) {
+      log(st, m, 'Вопрос судьи №' + jq.n + ': ' + (jq.a ? 'оба ответили верно' : 'оба ошиблись') + ', следующий вопрос');
+      jq.n++; jq.a = null; jq.b = null;
+    } else {
+      finishDuel(st, m, jq.a ? 'b' : 'a', 'ошибка в вопросе судьи №' + jq.n);
+    }
+  }
+  return true;
+}
+
+// ---------- экзамен ----------
+function finishExam(st, m, pass, why) {
+  const L = m.live, pid = L.pid;
+  m.status = 'done'; L.mode = 'done';
+  if (pass) { m.winner = pid; m.loser = null; }
+  else { m.winner = null; m.loser = pid; }
+  m.res = nick(st, pid) + (pass ? ' прошёл экзамен' : ' не прошёл экзамен') + ' (' + L.correct + '/' + L.asked + (why ? ', ' + why : '') + ')';
+  log(st, m, 'Экзамен завершён. ' + m.res + '.');
+  propagate(st);
+}
+function examAnswer(st, m, ok, ms) {
+  if (!isLive(m) || m.kind !== 'exam') return false;
+  const L = m.live;
+  L.asked++; if (ok) L.correct++; else L.wrong++;
+  log(st, m, 'Вопрос ' + L.asked + '/' + L.total + ': ' + (ok ? 'ответ верный' : 'ответ неверный / не знаю / время вышло') + secStr(ms));
+  const rem = L.total - L.asked;
+  if (L.correct + rem < L.need) finishExam(st, m, false, 'нужное число верных уже недостижимо');
+  else if (rem === 0) finishExam(st, m, true, '');
+  return true;
+}
+function examForce(st, m, pass) {
+  if (!isLive(m) || m.kind !== 'exam') return false;
+  log(st, m, pass ? 'Судья засчитал экзамен как пройденный' : 'Судья засчитал провал экзамена (тех. поражение)');
+  finishExam(st, m, pass, pass ? 'решение судьи' : 'техническое поражение');
+  return true;
+}
+
+/* =====================================================================
+   ИНТЕРФЕЙС
+   ===================================================================== */
+let S = null;               // текущее состояние (у судьи — живое, у зрителей — TOURNAMENT_STATE)
+let isJudge = false;
+let undoStack = [];           // для «Отменить последнее действие» (только в памяти)
+let matchEls = {};
+let rolling = false;
+let lossReason = 'time';
+
+const $ = id => document.getElementById(id);
+function clear(el) { if (el) el.textContent = ''; }
+// Конструктор элементов. Строки всегда вставляются как текст (textContent) — защита от XSS.
+function h(tag, props) {
+  const e = document.createElement(tag);
+  if (props) for (const k in props) {
+    const v = props[k];
+    if (v === null || v === undefined || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v);
+    else if (k === 'disabled') e.disabled = true;
+    else if (k === 'value') e.value = v;
+    else e.setAttribute(k, v === true ? '' : String(v));
+  }
+  for (let i = 2; i < arguments.length; i++) {
+    const kids = [].concat(arguments[i]);
+    kids.forEach(c => { if (c === null || c === undefined || c === false) return; e.appendChild(c.nodeType ? c : document.createTextNode(String(c))); });
+  }
+  return e;
+}
+function fmtTime(v) { if (!v) return ''; const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d:\d\d)/.exec(v); return m ? m[3] + '.' + m[2] + '.' + m[1] + ' ' + m[4] : v; }
+function fmtClock(t) { const d = new Date(t), p = x => String(x).padStart(2, '0'); return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()); }
+function tz() { return (S.settings && S.settings.tz) || TIMEZONE_LABEL; }
+function curMatch() { return S.currentId ? findMatch(S, S.currentId) : null; }
+function elapsedMs() { return T.touched ? ANSWER_SECONDS * 1000 - T.rem : null; }
+
+// ---------- сохранение ----------
+function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) {} }
+function commit() { if (isJudge) save(); render(); }
+function act(fn) {
+  if (!isJudge) return;
+  undoStack.push(JSON.stringify(S)); if (undoStack.length > 40) undoStack.shift();
+  fn(); commit();
+}
+function undo() { if (!isJudge || !undoStack.length) return; S = JSON.parse(undoStack.pop()); timerReset(); commit(); }
+function loadState() {
+  if (isJudge) { try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) { S = normalize(JSON.parse(raw)); return; } } catch (e) {} }
+  S = normalize(JSON.parse(JSON.stringify(TOURNAMENT_STATE)));
+}
+
+// ---------- копирование ----------
+function copyText(text, btn) {
+  const done = () => { if (btn) { const o = btn.dataset.o || btn.textContent; btn.dataset.o = o; btn.textContent = '✔ Скопировано'; setTimeout(() => { btn.textContent = o; }, 1500); } };
+  function fallback() {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta); done();
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+}
+function logText(m) {
+  const head = 'Хелпер-перестрелка — ' + roundLabel(S, m) + ', матч №' + m.num + ': ' + matchTitle(S, m);
+  return [head].concat((S.log[m.id] || []).map(e => '[' + fmtClock(e.t) + '] ' + e.text)).join('\n');
+}
+
+// ---------- таймер ----------
+const T = { rem: ANSWER_SECONDS * 1000, running: false, last: 0, iv: null, touched: false };
+let audioCtx = null;
+function ensureAudio() { try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); } catch (e) {} }
+function beep() {
+  if (!audioCtx) return;
+  for (let i = 0; i < 4; i++) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain(), t0 = audioCtx.currentTime + i * 0.35;
+    o.type = 'square'; o.frequency.value = i === 3 ? 1100 : 760;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t0); o.stop(t0 + 0.32);
+  }
+}
+function renderTimer() {
+  const el = $('timerDisplay'); if (!el) return;
+  const s = Math.ceil(T.rem / 1000);
+  el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  el.className = 'timer' + (T.rem <= 0 ? ' over' : (s <= 10 && T.touched ? ' danger' : (s <= 20 && T.touched ? ' warn' : '')));
+}
+function timerStop() { T.running = false; if (T.iv) { clearInterval(T.iv); T.iv = null; } renderTimer(); }
+function timerReset() { timerStop(); T.rem = ANSWER_SECONDS * 1000; T.touched = false; renderTimer(); }
+function timerStart() {
+  ensureAudio();
+  if (T.running || T.rem <= 0) return;
+  T.running = true; T.touched = true; T.last = performance.now();
+  T.iv = setInterval(() => {
+    const n = performance.now(); T.rem -= n - T.last; T.last = n;
+    if (T.rem <= 0) {
+      T.rem = 0; timerStop(); beep();
+      const m = curMatch();
+      if (isJudge && isLive(m)) { log(S, m, 'Время на ответ вышло (' + ANSWER_SECONDS + ' с)'); commit(); }
+    }
+    renderTimer();
+  }, 100);
+  renderTimer();
+}
+
+// ---------- рендер: шапка, участники ----------
+function statusText() {
+  if (S.phase === 'live') return ['Турнир идёт', 'live'];
+  if (S.phase === 'done') return ['Турнир завершён', 'done'];
+  return [S.regOpen ? 'Регистрация открыта' : 'Регистрация закрыта', ''];
+}
+function renderHeader() {
+  $('prizeText').textContent = PRIZE_TEXT;
+  $('judgeName').textContent = JUDGE_NAME;
+  $('footJudge').textContent = JUDGE_NAME;
+  $('countText').textContent = String(S.players.length);
+  const st = statusText(), c = $('statusChip');
+  c.textContent = st[0]; c.className = 'chip st ' + st[1];
+  $('tzText').textContent = tz();
+  $('judgeBtn').textContent = isJudge ? '⚙ Панель судьи' : '🔐 Судья';
+}
+function isOut(pid) {
+  return allMatches(S).some(m => m.status === 'done' && m.loser === pid && !(S.third && m.r !== 'T' && S.third.status !== 'done' && (S.third.a === pid || S.third.b === pid)));
+}
+function renderPlayers() {
+  const ul = $('plist'); clear(ul);
+  const list = S.players.slice();
+  if (S.rounds.length) list.sort((x, y) => (S.seeds[x.id] || 999) - (S.seeds[y.id] || 999));
+  list.forEach(p => ul.appendChild(h('li', { class: isOut(p.id) ? 'out' : '' }, S.seeds[p.id] ? h('span', { class: 'seed' }, S.seeds[p.id]) : null, p.nick)));
+  $('plistEmpty').hidden = S.players.length > 0;
+  const open = S.phase === 'reg' && S.regOpen;
+  $('nickInput').disabled = !open; $('regSubmit').disabled = !open;
+  if (!open) { $('regMsg').textContent = 'Регистрация закрыта.'; $('regMsg').className = 'msg err'; }
+  else if ($('regMsg').textContent === 'Регистрация закрыта.') { $('regMsg').textContent = ''; }
+}
+
+// ---------- рендер: сетка ----------
+function slotEl(m, side) {
+  const pid = m[side], res = m[side + 'Res'];
+  let cls = 'slot', label, seed = null;
+  if (pid) { label = nick(S, pid); seed = S.seeds[pid]; }
+  else if (!res) { label = 'Ожидается'; cls += ' wait'; }
+  else if (m.kind === 'exam') { label = 'Судья (экзамен)'; cls += ' judge'; }
+  else { label = '—'; cls += ' wait'; }
+  if (m.status === 'done' && pid) { if (pid === m.winner) cls += ' win'; else if (pid === m.loser) cls += ' lose'; }
+  return h('div', { class: cls }, seed ? h('span', { class: 'seed' }, seed) : null, h('span', { class: 'nm' }, label));
+}
+function matchBox(m) {
+  const order = (m.kind === 'exam' && !m.a) ? ['b', 'a'] : ['a', 'b'];
+  const cls = 'match' + (m.id === S.currentId ? ' cur' : '') + (m.status === 'live' ? ' live' : '') + (isJudge ? ' clickable' : '');
+  const head = h('div', { class: 'mhead' }, h('span', null, m.r === 'T' ? '3-е место' : 'Матч №' + m.num), h('span', null, m.time ? fmtTime(m.time) : ''));
+  const box = h('div', { class: cls, 'data-id': m.id, onclick: isJudge ? () => selectMatch(m.id) : null }, head, slotEl(m, order[0]), slotEl(m, order[1]));
+  matchEls[m.id] = box;
+  return box;
+}
+function renderBracket() {
+  const cols = $('bracketCols'); clear(cols); matchEls = {};
+  const has = S.rounds.length > 0;
+  $('bracketEmpty').hidden = has; $('bracketScroll').hidden = !has;
+  clear($('thirdBox')); clear($('drawBox'));
+  if (!has) return;
+  S.rounds.forEach((row, r) => {
+    cols.appendChild(h('div', { class: 'col' }, h('div', { class: 'col-title' }, roundName(S.draw.size / Math.pow(2, r))), h('div', { class: 'col-matches' }, row.map(matchBox))));
+  });
+  if (S.third) {
+    $('thirdBox').appendChild(h('div', { style: 'max-width:216px;margin-top:10px' }, h('div', { class: 'col-title' }, 'Матч за 3-е место'), matchBox(S.third)));
+  }
+  // публичный итог жеребьёвки
+  const byePids = S.rounds[0].filter((m, i) => S.draw.byeMatches.indexOf(i) >= 0).map(m => m.a);
+  $('drawBox').appendChild(h('details', { style: 'margin-top:14px' },
+    h('summary', { class: 'muted' }, 'Итоги жеребьёвки (посев)'),
+    h('ul', { class: 'dlist' }, S.draw.order.map((pid, k) => h('li', null, h('span', { class: 'seed' }, k + 1), nick(S, pid), byePids.indexOf(pid) >= 0 ? h('span', { class: 'tag' }, 'без пары — экзамен у судьи') : null)))));
+  requestAnimationFrame(drawLines);
+}
+function drawLines() {
+  const inner = $('bracketInner'), svg = $('bracketSvg');
+  if (!inner || !svg) return;
+  clear(svg);
+  if (!S.rounds.length) return;
+  const ir = inner.getBoundingClientRect();
+  svg.setAttribute('width', Math.ceil(inner.offsetWidth)); svg.setAttribute('height', Math.ceil(inner.offsetHeight));
+  S.rounds.forEach((row, r) => {
+    if (r === S.rounds.length - 1) return;
+    row.forEach((m, i) => {
+      const from = matchEls[m.id], to = matchEls[S.rounds[r + 1][i >> 1].id];
+      if (!from || !to) return;
+      const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+      const x1 = a.right - ir.left, y1 = a.top + a.height / 2 - ir.top, x2 = b.left - ir.left, y2 = b.top + b.height / 2 - ir.top, xm = (x1 + x2) / 2;
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', 'M' + x1 + ' ' + y1 + ' H' + xm + ' V' + y2 + ' H' + x2);
+      svg.appendChild(p);
+    });
+  });
+}
+
+// ---------- рендер: расписание ----------
+function statusBadge(m) {
+  const map = { wait: ['ожидает', ''], ready: ['готов', 'ready'], live: ['идёт', 'live'], done: ['завершён', 'done'] };
+  const x = map[m.status];
+  return h('span', { class: 'badge ' + x[1] }, m.kind === 'void' ? 'не состоится' : x[0]);
+}
+function renderSchedule() {
+  const box = $('schedList'); clear(box);
+  const ms = allMatches(S).filter(m => m.kind !== 'void');
+  $('schedEmpty').hidden = S.rounds.length > 0;
+  ms.forEach(m => {
+    const when = isJudge
+      ? h('input', { type: 'datetime-local', value: m.time || '', onchange: e => { const v = e.target.value; act(() => { m.time = v; }); } })
+      : h('div', { class: 'when' }, m.time ? fmtTime(m.time) : 'время не назначено');
+    box.appendChild(h('div', { class: 'srow' + (m.id === S.currentId ? ' cur' : '') },
+      h('div', { class: 'small muted' }, roundLabel(S, m), m.r === 'T' ? '' : ' · №' + m.num),
+      h('div', null, h('div', null, matchTitle(S, m)), isJudge ? null : when, m.status === 'done' && m.res ? h('div', { class: 'small muted' }, m.res) : null, isJudge ? when : null),
+      h('div', { class: 'row' }, statusBadge(m), isJudge ? h('button', { class: 'btn ghost sm', onclick: () => selectMatch(m.id) }, 'Сделать текущим') : null)));
+  });
+}
+
+// ---------- рендер: текущий матч ----------
+function playerCard(m, side) {
+  const L = m.live, pid = m[side];
+  let cls = 'pcard', role = '';
+  if (m.status === 'live' && L.mode === 'duel' && L.asker) { cls += L.asker === side ? ' ask' : ' ans'; role = L.asker === side ? '🎤 Спрашивает' : '🧠 Отвечает'; }
+  if (m.status === 'done') { if (pid === m.loser) cls += ' lost'; role = pid === m.winner ? '🏆 Победитель' : '❌ Вылетел'; }
+  const kids = [h('div', { class: 'role' }, role), h('div', { class: 'pn' }, nick(S, pid)),
+    h('div', { class: 'cnt' }, (L ? L.q[side] : 0) + ' / ' + QUESTION_LIMIT), h('div', { class: 'small muted' }, 'вопросов задано')];
+  if (L && L.mode === 'duel' && L.asker === side) kids.push(h('div', { class: 'small muted' }, 'отклонено подряд: ' + L.rej[side] + '/' + MAX_REJECTS));
+  return h('div', { class: cls }, kids);
+}
+function renderCurrent() {
+  const box = $('currentBox'); clear(box);
+  const m = curMatch();
+  if (!m) { box.appendChild(h('p', { class: 'muted' }, S.phase === 'reg' ? 'Турнир ещё не начался.' : 'Текущий матч не выбран.')); renderLog(null); return; }
+  box.appendChild(h('div', { class: 'small muted', style: 'text-align:center;margin-bottom:10px' }, roundLabel(S, m) + (m.r === 'T' ? '' : ' · Матч №' + m.num) + (m.time ? ' · ' + fmtTime(m.time) + ' ' + tz() : '')));
+  if (m.kind === 'duel') {
+    const L = m.live;
+    box.appendChild(h('div', { class: 'duel' }, playerCard(m, 'a'), h('div', { class: 'vs' }, 'VS'), playerCard(m, 'b')));
+    box.appendChild(h('div', { id: 'rollText', class: 'roll', style: 'font-size:22px;min-height:30px' }));
+    if (m.status === 'ready') box.appendChild(h('div', { class: 'banner' }, 'Матч готов к началу.'));
+    if (m.status === 'live' && L.mode === 'duel' && !L.first) box.appendChild(h('div', { class: 'banner' }, 'Первого спрашивающего определит рандом.'));
+    if (m.status === 'live' && L.mode === 'judge') box.appendChild(h('div', { class: 'banner' }, '⚖️ Режим «Вопросы судьи» — вопрос №' + L.jq.n + '. Ошибся — проиграл.'));
+  } else if (m.kind === 'exam') {
+    const L = m.live, pid = m.a || m.b;
+    box.appendChild(h('div', { class: 'duel', style: 'grid-template-columns:1fr auto 1fr' },
+      h('div', { class: 'pcard' + (m.status === 'done' && m.loser === pid ? ' lost' : '') }, h('div', { class: 'role' }, m.status === 'done' ? (m.winner === pid ? '✅ Экзамен сдан' : '❌ Экзамен не сдан') : '📝 Сдаёт экзамен'), h('div', { class: 'pn' }, nick(S, pid))),
+      h('div', { class: 'vs' }, 'VS'),
+      h('div', { class: 'pcard' }, h('div', { class: 'role' }, 'Судья'), h('div', { class: 'pn' }, JUDGE_NAME))));
+    if (L) box.appendChild(h('div', { class: 'banner' },
+      m.status === 'live' ? 'Вопрос судьи №' + (L.asked + 1) + ' из ' + L.total + ' · ' : '', 'верных: ' + L.correct + ' · ошибок: ' + L.wrong + ' · нужно верных: ' + L.need + ' из ' + L.total));
+    else box.appendChild(h('div', { class: 'banner' }, 'Экзамен готов к началу (вопросов: ' + clamp(S.settings.examQuestions, 1, 50) + ').'));
+  } else box.appendChild(h('p', { class: 'muted' }, 'В этом матче нет участников.'));
+  if (m.status === 'done' && m.res) box.appendChild(h('div', { class: 'banner red' }, m.res));
+  if (m.status === 'wait') box.appendChild(h('div', { class: 'banner' }, 'Матч ждёт результатов предыдущих матчей.'));
+  renderLog(m);
+}
+function renderLog(m) {
+  $('logBox').textContent = m ? (S.log[m.id] || []).map(e => '[' + fmtClock(e.t) + '] ' + e.text).join('\n') || '(пусто)' : '(матч не выбран)';
+  $('logBox').scrollTop = 1e9;
+}
+
+// ---------- управление матчем (судья) ----------
+function selectMatch(id) { if (!isJudge) return; timerReset(); act(() => { S.currentId = id; }); const el = $('current'); if (el && el.scrollIntoView) el.scrollIntoView(); }
+function nextReadyId() {
+  const ms = allMatches(S);
+  const m = ms.find(x => x.status === 'live' && x.id !== S.currentId) || ms.find(x => x.status === 'ready');
+  return m ? m.id : null;
+}
+function rollAsker(m) {
+  if (rolling) return; rolling = true; let n = 0;
+  const iv = setInterval(() => {
+    n++; const el = $('rollText'); if (el) el.textContent = '🎲 ' + nick(S, m[n % 2 ? 'a' : 'b']);
+    if (n >= 14) { clearInterval(iv); rolling = false; act(() => { duelRandom(S, m); }); }
+  }, 90);
+}
+function verdict(fn) { const ms = elapsedMs(); act(() => { fn(ms); }); timerReset(); }
+function confirmDo(text, fn) { if (confirm(text)) verdict(fn); }
+
+function sideBlock(m, side) {
+  const n = nick(S, m[side]);
+  return h('div', { class: 'sidebox' }, h('b', null, n),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn danger sm', onclick: () => confirmDo('Засчитать поражение: ' + n + ' (' + REASONS[lossReason] + ')?', ms => duelLose(S, m, side, lossReason, ms)) }, 'Проигрыш'),
+      h('button', { class: 'btn sm', onclick: () => confirmDo('Засчитать победу: ' + n + '?', () => duelWin(S, m, side)) }, 'Засчитать победу'),
+      h('button', { class: 'btn ghost sm', onclick: () => confirmDo('Техническое поражение (неявка): ' + n + '?', () => duelTech(S, m, side)) }, 'Тех. поражение')));
+}
+function renderControls() {
+  const box = $('matchControls'); clear(box);
+  $('timerBtns').hidden = !isJudge; box.hidden = !isJudge;
+  $('timerNote').textContent = isJudge ? '' : 'Таймер ведёт судья. На экране зрителей он статичен — сайт работает без сервера.';
+  if (!isJudge) return;
+  box.appendChild(h('h3', null, 'Управление матчем'));
+  const m = curMatch(), nid = nextReadyId();
+  const nextBtn = h('button', { class: 'btn ghost', disabled: !nid, onclick: () => selectMatch(nid) }, '→ Следующий готовый матч');
+  if (!m) { box.appendChild(h('div', { class: 'row' }, nextBtn)); return; }
+  if (m.status === 'wait' || m.kind === 'void') { box.appendChild(h('p', { class: 'muted' }, 'Матч пока недоступен.'), h('div', { class: 'row' }, nextBtn)); return; }
+  if (m.status === 'ready') {
+    box.appendChild(h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => act(() => { startMatch(S, m); }) }, m.kind === 'exam' ? '▶ Начать экзамен' : '▶ Начать матч'), nextBtn));
+    return;
+  }
+  if (m.status === 'done') { box.appendChild(h('div', { class: 'row' }, nextBtn)); return; }
+  const L = m.live;
+  if (m.kind === 'exam') {
+    box.appendChild(h('div', { class: 'row' },
+      h('button', { class: 'btn', onclick: () => verdict(ms => examAnswer(S, m, true, ms)) }, '✅ Верно'),
+      h('button', { class: 'btn danger', onclick: () => verdict(ms => examAnswer(S, m, false, ms)) }, '❌ Неверно / не знаю / время вышло')));
+    box.appendChild(h('div', { class: 'row' },
+      h('button', { class: 'btn ghost sm', onclick: () => confirmDo('Засчитать экзамен как пройденный?', () => examForce(S, m, true)) }, 'Засчитать (сдал)'),
+      h('button', { class: 'btn ghost sm', onclick: () => confirmDo('Засчитать провал экзамена (тех. поражение)?', () => examForce(S, m, false)) }, 'Тех. поражение (не сдал)')));
+    box.appendChild(h('div', { class: 'row' }, nextBtn));
+    return;
+  }
+  if (L.mode === 'duel') {
+    box.appendChild(h('div', { class: 'row' },
+      h('button', { class: 'btn warn', disabled: !!L.first || rolling, onclick: () => rollAsker(m) }, '🎲 Рандом: кто спрашивает первым'),
+      h('button', { class: 'btn', disabled: !L.asker, onclick: () => verdict(ms => duelCorrect(S, m, ms)) }, '✅ Ответ верный'),
+      h('button', { class: 'btn ghost', disabled: !L.asker, onclick: () => act(() => { duelReject(S, m); }) }, '🚫 Отклонить вопрос')));
+  } else if (L.mode === 'judge') {
+    const jq = L.jq;
+    const jb = side => h('div', { class: 'sidebox' }, h('b', null, nick(S, m[side])), h('div', { class: 'small muted' }, jq[side] === null ? 'ждёт ответа' : (jq[side] ? 'ответил верно' : 'ошибся')),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn sm', disabled: jq[side] !== null, onclick: () => verdict(ms => judgeAnswer(S, m, side, true, ms)) }, '✅ Верно'),
+        h('button', { class: 'btn danger sm', disabled: jq[side] !== null, onclick: () => verdict(ms => judgeAnswer(S, m, side, false, ms)) }, '❌ Ошибся')));
+    box.appendChild(h('div', { class: 'row', style: 'align-items:stretch' }, jb('a'), jb('b')));
+  }
+  const sel = h('select', { onchange: e => { lossReason = e.target.value; } }, Object.keys(REASONS).map(k => { const o = h('option', { value: k }, REASONS[k]); if (k === lossReason) o.selected = true; return o; }));
+  box.appendChild(h('div', { class: 'row' }, h('label', null, 'Причина проигрыша: '), sel));
+  box.appendChild(h('div', { class: 'row', style: 'align-items:stretch' }, sideBlock(m, 'a'), sideBlock(m, 'b')));
+  box.appendChild(h('div', { class: 'row' }, nextBtn));
+}
+
+// ---------- рендер: итоги ----------
+function renderResults() {
+  const box = $('resultsBox'); clear(box);
+  const r = S.rounds.length ? results(S) : null;
+  if (!r || !r.final) { box.appendChild(h('p', { class: 'muted' }, 'Турнир ещё не завершён. Здесь появятся победитель и призёры.')); return; }
+  const pod = (cls, medal, title, pid) => h('div', { class: 'pod ' + cls }, h('div', { class: 'm' }, medal), h('div', { class: 'small muted' }, title), h('div', { class: 'n' }, pid ? nick(S, pid) : 'не определён'));
+  const items = [pod('gold', '🥇', 'Победитель', r.champion)];
+  if (r.second) items.push(pod('', '🥈', '2 место', r.second));
+  if (S.third) { if (S.third.status === 'done' && r.thirds.length) items.push(pod('', '🥉', '3 место', r.thirds[0])); else if (S.phase !== 'done') items.push(h('div', { class: 'pod' }, h('div', { class: 'm' }, '🥉'), h('div', { class: 'small muted' }, '3 место'), h('div', { class: 'n' }, 'решается…'))); }
+  else r.thirds.forEach(p => items.push(pod('', '🥉', '3 место (полуфиналист)', p)));
+  box.appendChild(h('div', { class: 'podium' }, items));
+  if (!r.champion) box.appendChild(h('p', { class: 'muted small' }, 'Финалист не прошёл экзамен — победитель не определён, решение за судьёй.'));
+}
+
+// ---------- рендер: панель судьи ----------
+function setIfIdle(el, v) { if (el && document.activeElement !== el && String(el.value) !== String(v)) el.value = v; }
+function renderJudge() {
+  $('judge').hidden = !isJudge;
+  if (!isJudge) return;
+  const reg = S.phase === 'reg';
+  $('btnStart').disabled = !reg; $('optThird').checked = !!S.thirdPlace; $('optThird').disabled = !reg;
+  $('btnReg').textContent = S.regOpen ? 'Закрыть регистрацию' : 'Открыть регистрацию'; $('btnReg').disabled = !reg;
+  setIfIdle($('examQ'), S.settings.examQuestions); setIfIdle($('examNeed'), S.settings.examNeed); setIfIdle($('tzInput'), S.settings.tz);
+  $('btnUndo').disabled = !undoStack.length; $('btnClear').disabled = !reg;
+  const tb = $('judgeList'); clear(tb);
+  S.players.forEach(p => tb.appendChild(h('tr', null,
+    h('td', null, S.seeds[p.id] ? '#' + S.seeds[p.id] : ''), h('td', null, p.nick),
+    h('td', { style: 'text-align:right;white-space:nowrap' },
+      h('button', { class: 'btn ghost sm', onclick: () => renameP(p) }, '✏'), ' ',
+      h('button', { class: 'btn ghost sm', disabled: !reg, onclick: () => { if (confirm('Удалить ' + p.nick + '?')) act(() => { S.players = S.players.filter(x => x.id !== p.id); }); } }, '🗑')))));
+}
+function renameP(p) {
+  const v = prompt('Новый ник (Имя_Фамилия):', p.nick); if (v === null) return;
+  const n = v.trim();
+  if (!isValidNick(n)) { alert('Неверный формат. Нужно Имя_Фамилия: латиница, цифры, подчёркивание.'); return; }
+  if (hasNick(S, n, p.id)) { alert('Такой ник уже есть.'); return; }
+  act(() => { p.nick = n; });
+}
+function reportText(rep) {
+  const parts = [];
+  if (rep.added.length) parts.push('Добавлено (' + rep.added.length + '): ' + rep.added.join(', '));
+  if (rep.dup.length) parts.push('Уже были в списке: ' + rep.dup.join(', '));
+  if (rep.bad.length) parts.push('Неверный формат / код: ' + rep.bad.join(', '));
+  return parts.join('\n') || 'Нечего добавлять.';
+}
+function showMsg(id, text, ok) { const e = $(id); e.textContent = text; e.className = 'msg ' + (ok ? 'ok' : 'err'); }
+
+function render() {
+  renderHeader(); renderPlayers(); renderBracket(); renderSchedule(); renderCurrent(); renderControls(); renderResults(); renderJudge(); renderTimer();
+}
+
+// ---------- жеребьёвка ----------
+function startDraw() {
+  if (!isJudge || S.phase !== 'reg') return;
+  if (S.players.length < 2) { alert('Нужно минимум 2 участника.'); return; }
+  if (S.players.length > 64) { alert('Максимум 64 участника.'); return; }
+  if (!confirm('Начать турнир с ' + S.players.length + ' участниками? Регистрация будет закрыта.')) return;
+  const draw = makeDraw(S), modal = $('drawModal');
+  clear($('drawList')); $('drawClose').hidden = true; $('drawTitle').textContent = 'Жеребьёвка…'; modal.hidden = false;
+  const iv = setInterval(() => { $('drawRoll').textContent = S.players[rnd(S.players.length)].nick; }, 70);
+  setTimeout(() => {
+    clearInterval(iv);
+    act(() => { applyDraw(S, draw); });
+    const byePids = S.rounds[0].filter((m, i) => draw.byeMatches.indexOf(i) >= 0).map(m => m.a);
+    $('drawTitle').textContent = 'Жеребьёвка завершена'; $('drawRoll').textContent = '';
+    draw.order.forEach((pid, k) => setTimeout(() => {
+      $('drawList').appendChild(h('li', null, h('span', { class: 'seed' }, k + 1), nick(S, pid), byePids.indexOf(pid) >= 0 ? h('span', { class: 'tag' }, 'без пары → экзамен у судьи') : null));
+      if (k === draw.order.length - 1) $('drawClose').hidden = false;
+    }, k * 70));
+    location.hash = '#bracket';
+  }, 2400);
+}
+
+// ---------- импорт / экспорт состояния ----------
+function exportCode() {
+  return '// Вставьте этот блок в index.html вместо старого блока const TOURNAMENT_STATE (до точки с запятой)\n' +
+         'const TOURNAMENT_STATE = ' + JSON.stringify(S, null, 2) + ';\n';
+}
+function parseStateText(text) {
+  const k = text.indexOf('TOURNAMENT_STATE');            // пропускаем комментарии до самого объекта
+  const a = text.indexOf('{', k < 0 ? 0 : k), b = text.lastIndexOf('}');
+  if (a < 0 || b <= a) throw new Error('не найден объект { ... }');
+  return normalize(JSON.parse(text.slice(a, b + 1)));
+}
+
+// ---------- привязка событий ----------
+function bindStatic() {
+  // заявка участника
+  $('regForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const n = $('nickInput').value.trim();
+    if (!isValidNick(n)) { showMsg('regMsg', 'Неверный формат. Пример: Ivan_Ivanov (латиница, цифры, подчёркивание, 5–32 символа).', false); $('codeBox').hidden = true; return; }
+    if (hasNick(S, n)) { showMsg('regMsg', 'Этот ник уже есть в списке участников.', false); $('codeBox').hidden = true; return; }
+    $('codeText').textContent = makeCode(n); $('codeBox').hidden = false;
+    showMsg('regMsg', 'Заявка сформирована. Вставьте код в тему на форуме.', true);
+  });
+  $('copyCode').addEventListener('click', () => copyText($('codeText').textContent, $('copyCode')));
+  $('copyLog').addEventListener('click', () => { const m = curMatch(); if (m) copyText(logText(m), $('copyLog')); });
+
+  // таймер
+  $('tStart').addEventListener('click', timerStart);
+  $('tStop').addEventListener('click', timerStop);
+  $('tReset').addEventListener('click', timerReset);
+
+  // вход судьи
+  $('judgeBtn').addEventListener('click', e => {
+    e.preventDefault();
+    if (isJudge) { $('judge').scrollIntoView(); return; }
+    $('loginErr').textContent = ''; $('loginPass').value = ''; $('loginModal').hidden = false; $('loginPass').focus();
+  });
+  $('loginCancel').addEventListener('click', () => { $('loginModal').hidden = true; });
+  $('loginForm').addEventListener('submit', e => {
+    e.preventDefault();
+    if ($('loginPass').value !== JUDGE_PASSWORD) { $('loginErr').textContent = 'Неверный пароль.'; return; }
+    $('loginModal').hidden = true; isJudge = true;
+    try { sessionStorage.setItem('hsj', '1'); } catch (er) {}
+    loadState(); save(); undoStack = []; render();
+    $('judge').scrollIntoView();
+  });
+  $('btnLogout').addEventListener('click', () => {
+    isJudge = false; try { sessionStorage.removeItem('hsj'); } catch (er) {}
+    timerReset(); loadState(); render();
+  });
+
+  // турнир
+  $('btnStart').addEventListener('click', startDraw);
+  $('drawClose').addEventListener('click', () => { $('drawModal').hidden = true; });
+  $('btnReset').addEventListener('click', () => {
+    if (!confirm('Сбросить турнир? Сетка, результаты, расписание и логи будут удалены. Список участников сохранится.')) return;
+    act(() => { const keep = S.players, nid = S.nextId, set = S.settings, third = S.thirdPlace; S = emptyState(); S.players = keep; S.nextId = nid; S.settings = set; S.thirdPlace = third; });
+    timerReset();
+  });
+  $('btnClear').addEventListener('click', () => { if (confirm('Удалить ВСЕХ участников?')) act(() => { S.players = []; }); });
+  $('btnReg').addEventListener('click', () => act(() => { S.regOpen = !S.regOpen; }));
+  $('optThird').addEventListener('change', e => { const v = e.target.checked; act(() => { S.thirdPlace = v; }); });
+  $('examQ').addEventListener('change', e => act(() => { S.settings.examQuestions = clamp(e.target.value, 1, 30); S.settings.examNeed = clamp(S.settings.examNeed, 0, S.settings.examQuestions); }));
+  $('examNeed').addEventListener('change', e => act(() => { S.settings.examNeed = clamp(e.target.value, 0, S.settings.examQuestions); }));
+  $('tzInput').addEventListener('change', e => act(() => { S.settings.tz = e.target.value.trim() || TIMEZONE_LABEL; }));
+  $('btnUndo').addEventListener('click', undo);
+
+  // участники
+  $('btnAdd').addEventListener('click', () => {
+    if (S.phase !== 'reg') { showMsg('addMsg', 'Турнир уже начался — список менять нельзя.', false); return; }
+    let rep; act(() => { rep = addNicks(S, $('addNicks').value); });
+    showMsg('addMsg', reportText(rep), rep.added.length > 0 && !rep.bad.length); if (rep.added.length) $('addNicks').value = '';
+  });
+  $('btnImport').addEventListener('click', () => {
+    if (S.phase !== 'reg') { showMsg('addMsg', 'Турнир уже начался — список менять нельзя.', false); return; }
+    let rep; act(() => { rep = importCodes(S, $('importCodes').value); });
+    showMsg('addMsg', reportText(rep), rep.added.length > 0 && !rep.bad.length); if (rep.added.length) $('importCodes').value = '';
+  });
+
+  // экспорт / импорт
+  $('btnExport').addEventListener('click', () => { $('stateText').value = exportCode(); showMsg('stateMsg', 'Готово. Нажмите «Скопировать» и вставьте в index.html вместо TOURNAMENT_STATE.', true); });
+  $('btnCopyState').addEventListener('click', () => { if (!$('stateText').value) $('stateText').value = exportCode(); copyText($('stateText').value, $('btnCopyState')); });
+  $('btnImportState').addEventListener('click', () => {
+    try {
+      const st = parseStateText($('stateText').value);
+      if (!confirm('Заменить текущее живое состояние импортированным?')) return;
+      act(() => { S = st; });
+      showMsg('stateMsg', 'Состояние импортировано.', true);
+    } catch (er) { showMsg('stateMsg', 'Ошибка импорта: ' + er.message, false); }
+  });
+  window.addEventListener('resize', drawLines);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawLines);
+}
+
+function boot() {
+  try { isJudge = sessionStorage.getItem('hsj') === '1'; } catch (e) { isJudge = false; }
+  loadState(); bindStatic(); render();
+}
+if (!globalThis.__NO_BOOT__) boot();
+</script>
+</body>
+</html>
