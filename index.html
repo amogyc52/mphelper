@@ -7,7 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&family=Russo+One&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script>if (typeof mqtt === "undefined") document.write('<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"><\/script>');</script>   <!-- запасной CDN -->
 <style>
 :root{
   --bg:#090d0a; --card:#131b15; --card2:#1a251d; --line:#27372b;
@@ -338,7 +339,7 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
   </div>
 </section>
 
-<footer>Хелпер-перестрелка · Rodina RP · Судья: <span id="footJudge"></span> · версия 8 (диагностика связи)</footer>
+<footer>Хелпер-перестрелка · Rodina RP · Судья: <span id="footJudge"></span> · версия 9 (связь через MQTT)</footer>
 </div>
 
 <!-- Модалка жеребьёвки -->
@@ -889,22 +890,57 @@ function timerStart() {
    • Зрители видят ход турнира вживую. Если связи нет — показывается TOURNAMENT_STATE.
    • Игрок вводит свой ник в блоке «Я участник» и отправляет вопрос/ответ/«Не знаю» сам.
      Судья видит всё в логе и выносит вердикт. Ник вводится без пароля — доверяйте логу судьи.
-   • Нужен интернет (брокер PeerJS 0.peerjs.com). Судья держит вкладку открытой.
+   • Нужен интернет: связь идёт через публичные MQTT-брокеры (EMQX, HiveMQ, Mosquitto) по WebSocket. Судья держит вкладку открытой.
    ===================================================================== */
-const PEER_OPTS = { config: { iceServers: [
-  { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' },
-  // бесплатный публичный TURN (если прямое соединение невозможно); при желании замените на свой
-  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
-] } };
 function isOn(n) { const k = String(n).toLowerCase(); return isJudge ? online(n) : net.online.some(x => String(x).toLowerCase() === k); }
 function online(n) { return net.conns.some(c => c.open && c.nick && c.nick.toLowerCase() === String(n).toLowerCase()); }
 const net = { online: [], oj: '', seenDraw: undefined, dv: null, peer: null, conn: null, ok: false, conns: [], lastJson: '', rt: null };
+// ---------- Связь через публичные MQTT-брокеры (WebSocket, без WebRTC и без своего сервера) ----------
+// Страница подключается ко ВСЕМ брокерам сразу: достаточно, чтобы у судьи и у игрока был доступен хотя бы один общий.
+// Свой брокер можно добавить в список (адрес вида wss://хост:порт/путь).
+const MQ_BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081'];
+const mq = { cl: [], seen: [] };
+function mqTopic(k) { return 'hs-shootout/' + ROOM_ID + '/' + k; }
+function mqUp() { return mq.cl.some(c => c.connected); }
+function mqPub(k, obj, retain) {
+  const p = JSON.stringify(Object.assign({ _m: Math.random().toString(36).slice(2) }, obj));
+  mq.cl.forEach(c => { if (c.connected) { try { c.publish(mqTopic(k), p, { qos: 0, retain: !!retain }); } catch (e) {} } });
+}
+function mqStart(topics, onMsg, onUp) {
+  mq.seen = [];
+  MQ_BROKERS.forEach(url => {
+    const c = mqtt.connect(url, { clientId: 'hs-' + cid + '-' + Math.random().toString(16).slice(2, 6), clean: true, keepalive: 30, reconnectPeriod: 4000, connectTimeout: 8000 });
+    c.on('connect', () => { c.subscribe(topics.map(mqTopic)); if (onUp) onUp(); mqStatus(); });
+    c.on('close', mqStatus);
+c.on('offline', mqStatus); c.on('error', () => {});
+    c.on('message', (t, buf) => {
+      let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; }
+      if (!d || !d._m || mq.seen.indexOf(d._m) >= 0) return;   // одно и то же сообщение может прийти от нескольких брокеров
+      mq.seen.push(d._m); if (mq.seen.length > 400) mq.seen.shift();
+      onMsg(t, d);
+    });
+    mq.cl.push(c);
+  });
+}
+function mqStop() { mq.cl.forEach(c => { try { c.end(true); } catch (e) {} }); mq.cl = []; mq.seen = []; }
+function mqStatus() { if (isJudge) updateNetChip(); else viewChip(); }
+function mqJudgeSeen() {
+  net.mqAt = Date.now();
+  if (!net.ok) { net.ok = true; setNet('📡 Онлайн: ход турнира вживую', 'ok'); if (myNick) mqPub('in', { cid: cid, t: 'hello', nick: myNick }); renderCurrent(); renderControls(); }
+}
+function viewChip() {
+  if (isJudge || net.ok || !mq.cl.length || Date.now() - (net.localAt || 0) < 7000) return;
+  const n = mq.cl.filter(c => c.connected).length, late = Date.now() - (net.t0 || 0) > 10000;
+  if (!n) setNet(late ? '📡 Нет доступа к серверам связи (emqx / hivemq / mosquitto) — проверьте интернет или блокировки' : '📡 Подключаюсь к серверам связи…', late ? 'bad' : '');
+  else setNet('📡 Серверы связи доступны (' + n + '/' + MQ_BROKERS.length + '), ' + (net.gotState ? 'но судья сейчас не в сети — показано последнее состояние' : 'судья не найден: проверьте ID комнаты, судья должен войти в «🔐 Судья»'), 'bad');
+}
 function setNet(text, cls) { const e = $('netChip'); e.hidden = false; e.textContent = text; e.className = 'chip ' + (cls || ''); }
-function snapshot() { return { t: 's', O: net.conns.filter(c => c.open && c.nick).map(c => c.nick), S: S, T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
+function hbMsg() { return { t: 'hb', O: net.conns.filter(c => c.open && c.nick).map(c => c.nick), T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
+function snapshot() { return { t: 's', ts: Date.now(), O: net.conns.filter(c => c.open && c.nick).map(c => c.nick), S: S, T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
 function updateNetChip() {
-  if (!isJudge || !net.peer) return;
-  const names = net.conns.filter(c => c.open && c.nick).map(c => c.nick);
-  setNet('📡 P2P: подключений ' + net.conns.filter(c => c.open).length + (names.length ? ' (игроки: ' + names.join(', ') + ')' : ''), 'ok');
+  if (!isJudge || !ROOM_ID) return;
+  const n = mq.cl.filter(c => c.connected).length, names = net.conns.filter(c => c.open && c.nick).map(c => c.nick);
+  setNet(n ? '📡 Онлайн · серверов связи: ' + n + '/' + MQ_BROKERS.length + ' · игроков: ' + (names.length ? names.join(', ') : '0') : '📡 Нет доступа к серверам связи — работают только вкладки этого браузера', n ? 'ok' : 'bad');
 }
 // Вкладки одного браузера (судья + игрок/зритель во второй вкладке) обновляются мгновенно через BroadcastChannel,
 // интернет и PeerJS для этого не нужны — удобно проверять турнир в одиночку.
@@ -933,26 +969,32 @@ function genRoom() { const a = 'abcdefghjkmnpqrstuvwxyz23456789'; let r = 'hs-';
 function applyRoom(id) {
   ROOM_ID = id; try { localStorage.setItem('hs-room', id); } catch (e) {}
   for (const k in localConns) delete localConns[k];
-  net.localAt = 0; net.lastJson = '';
+  net.localAt = 0; net.lastJson = ''; net.sts = 0; net.gotState = false;
   openChan();
   if ($('roomId')) $('roomId').textContent = id; if ($('roomId2')) $('roomId2').textContent = id;
   if ($('myRoomIn')) $('myRoomIn').value = id;
 }
 openChan();
-setInterval(() => {   // «пульс»: судья рассылает состояние, вкладки игроков отзываются
-  if (!chan) return;
+setInterval(() => {   // «пульс» раз в 2.5 с: присутствие игроков, состояние, таймер
+  const now = Date.now();
   if (isJudge) {
-    const now = Date.now();
-    net.conns = net.conns.filter(c => { if (c.local && now - c.seen > 8000) { delete localConns[c.cid]; return false; } return true; });
-    chan.postMessage(snapshot());
-  } else { chan.postMessage({ cid: cid, t: 'ping' }); if (myNick) chan.postMessage({ cid: cid, t: 'hello', nick: myNick }); }
+    net.conns = net.conns.filter(c => { if (c.local && now - c.seen > 9000) { delete localConns[c.cid]; return false; } return true; });
+    if (chan) chan.postMessage(snapshot());
+    if (ROOM_ID) mqPub('hb', hbMsg());
+    updateNetChip();
+  } else {
+    if (chan) { chan.postMessage({ cid: cid, t: 'ping' }); if (myNick) chan.postMessage({ cid: cid, t: 'hello', nick: myNick }); }
+    if (mq.cl.length) { mqPub('in', { cid: cid, t: 'ping' }); if (myNick) mqPub('in', { cid: cid, t: 'hello', nick: myNick }); }
+    if (net.ok && now - (net.mqAt || 0) > 12000) { net.ok = false; renderControls(); renderCurrent(); }
+    viewChip();
+  }
 }, 2500);
 function netBroadcast() {
   if (!isJudge) return;
   const msg = snapshot(); if (chan) chan.postMessage(msg);
-  if (!net.peer) return; net.conns.forEach(c => { if (c.open) { try { c.send(msg); } catch (e) {} } });
+  if (ROOM_ID) mqPub('s', msg, true);   // retained: зашедший позже сразу получает последнее состояние
 }
-function netEvent(msg) { if (chan) chan.postMessage(msg); net.conns.forEach(c => { if (c.open && !c.local) { try { c.send(msg); } catch (e) {} } }); }
+function netEvent(msg) { if (chan) chan.postMessage(msg); if (ROOM_ID) mqPub('e', msg); }
 function drawStartView() {
   if (isJudge) return;
   clear($('drawList')); $('drawClose').hidden = true; $('drawTitle').textContent = 'Жеребьёвка…'; $('drawModal').hidden = false;
@@ -965,25 +1007,30 @@ function drawEndView() {
   S.draw.order.forEach((pid, k) => $('drawList').appendChild(h('li', null, h('span', { class: 'seed' }, k + 1), nick(S, pid), byes.indexOf(pid) >= 0 ? h('span', { class: 'tag' }, 'без пары → экзамен у судьи') : null)));
   $('drawClose').hidden = false;
 }
-function netSend(msg) { if (net.conn && net.conn.open) net.conn.send(msg); else if (chan && linked()) chan.postMessage(Object.assign({ cid: cid }, msg)); else alert('Нет связи с судьёй.'); }
-function stopNet() { clearTimeout(net.rt); if (net.peer) { try { net.peer.destroy(); } catch (e) {} } net.peer = null; net.conn = null; net.conns = []; net.ok = false; }
+function netSend(msg) {
+  if (net.ok && mqUp()) mqPub('in', Object.assign({ cid: cid }, msg));
+  else if (chan && linked()) chan.postMessage(Object.assign({ cid: cid }, msg));
+  else alert('Нет связи с судьёй.');
+}
+function stopNet() { mqStop(); net.peer = null; net.conn = null; net.conns = []; net.ok = false; for (const k in localConns) delete localConns[k]; }
 function netRestart() {
   stopNet();
   if (isJudge && !ROOM_ID) applyRoom(genRoom());   // первый вход судьи: ID создаётся сам
   if (!ROOM_ID) { setNet('📡 Введите ID комнаты (его даёт судья), чтобы видеть турнир вживую', 'bad'); return; }
-  if (typeof Peer === 'undefined') { if (!linked()) setNet('📡 PeerJS не загрузился (нет интернета?) — работает только связь вкладок одного браузера', 'bad'); return; } isJudge ? startHost() : startClient(); }
+  if (typeof mqtt === 'undefined') { if (!linked()) setNet('📡 Библиотека связи не загрузилась (нет интернета?) — работает только связь вкладок одного браузера', 'bad'); return; }
+  isJudge ? startHost() : startClient();
+}
 
 function startHost() {
-  const p = net.peer = new Peer(ROOM_ID, PEER_OPTS);
-  p.on('open', () => { net.ok = true; updateNetChip(); });
-  p.on('close', () => setNet('📡 Соединение с брокером закрыто — переподключаюсь…', 'bad'));
-  p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
-  p.on('error', e => setNet(e.type === 'unavailable-id' ? '📡 Комната занята: судья уже открыт в другой вкладке (или сгенерируйте новый ID комнаты в панели судьи)' : '📡 Ошибка P2P у судьи: ' + e.type + ' (' + (e.message || '') + ')', 'bad'));
-  p.on('connection', c => {
-    c.on('open', () => { net.conns.push(c); c.send(snapshot()); updateNetChip(); });
-    c.on('data', d => onPeerMsg(c, d));
-    c.on('close', () => { net.conns = net.conns.filter(x => x !== c); updateNetChip(); render(); });
-  });
+  net.peer = true;
+  mqStart(['in'], (t, d) => {   // сообщения игроков
+    if (!d.cid) return;
+    let c = localConns[d.cid];
+    if (!c) { c = localConns[d.cid] = { open: true, local: true, cid: d.cid, nick: null, send: m => mqPub('to/' + d.cid, m) }; net.conns.push(c); }
+    c.seen = Date.now();
+    if (d.t !== 'ping') onPeerMsg(c, d);
+  }, () => { netBroadcast(); mqPub('hb', hbMsg()); });
+  updateNetChip();
 }
 function onPeerMsg(c, d) {   // сообщения игроков (проверяем всё: ник, фазу, чей ход)
   if (!d || typeof d.t !== 'string') return;
@@ -1018,35 +1065,23 @@ function onPeerMsg(c, d) {   // сообщения игроков (провер�
 }
 
 function startClient() {
-  const p = net.peer = new Peer(PEER_OPTS);
-  net.why = '';
-  // lost(текст) — показываем ТОЧНУЮ причину и пробуем снова каждые 5 секунд
-  const lost = why => {
-    net.ok = false; if (why) net.why = why; clearTimeout(net.ct);
-    setNet('📡 ' + (net.why || 'Нет связи с судьёй') + ' · повтор каждые 5 с', 'bad'); renderControls();
-    clearTimeout(net.rt); net.rt = setTimeout(() => { if (!isJudge && !net.ok && !p.destroyed) { if (p.disconnected) { try { p.reconnect(); } catch (e) {} } connect(); } }, 5000);
-  };
-  const connect = () => {
-    if (!p.open) { lost('Нет связи с брокером PeerJS (0.peerjs.com заблокирован или недоступен в вашей сети?)'); return; }
-    setNet('📡 Ищу судью в комнате ' + ROOM_ID + '…', '');
-    const c = net.conn = p.connect(ROOM_ID, { serialization: 'json', reliable: true });
-    clearTimeout(net.ct);
-    net.ct = setTimeout(() => { if (!c.open) { lost('Судья найден, но P2P-соединение не установилось (сеть или файрвол блокирует WebRTC)'); try { c.close(); } catch (e) {} } }, 15000);
-    c.on('open', () => { clearTimeout(net.ct); net.ok = true; net.why = ''; setNet('📡 Онлайн: ход турнира вживую', 'ok'); if (myNick) c.send({ t: 'hello', nick: myNick }); renderCurrent(); renderControls(); });
-    c.on('data', onPeerData); c.on('close', () => lost()); c.on('error', e => lost('Ошибка соединения: ' + ((e && e.type) || e)));
-  };
-  setNet('📡 Подключаюсь к брокеру PeerJS…', '');
-  p.on('open', connect);
-  p.on('disconnected', () => { try { p.reconnect(); } catch (e) {} });
-  p.on('error', e => {
-    if (e.type === 'peer-unavailable') lost('Судья не в сети: комната ' + ROOM_ID + ' не найдена (судья должен войти в «🔐 Судья» с этим ID и держать вкладку открытой)');
-    else lost('Брокер PeerJS: ' + e.type + ' (' + (e.message || 'нет деталей') + ')');
+  net.mqAt = 0; net.sts = 0; net.t0 = Date.now(); net.gotState = false;
+  mqStart(['s', 'e', 'hb', 'to/' + cid], (t, d) => {
+    if (d.t === 's') net.gotState = true; else mqJudgeSeen();   // retained-состояние само по себе не доказывает, что судья онлайн
+    onPeerData(d);
   });
+  viewChip();
 }
 function onPeerData(d) {
   if (!d) return;
+  if (d.t === 'hb') {
+    const oj = JSON.stringify(d.O || []); if (oj !== net.oj) { net.oj = oj; net.online = d.O || []; renderPlayers(); renderLobby(); }
+    if (d.T) { timerStop(); T.total = d.T.total; T.rem = d.T.rem; T.touched = d.T.touched; renderTimer(); if (d.T.running) timerStart(); }
+    return;
+  }
   if (d.t === 'drawstart') { drawStartView(); return; }
   if (d.t === 's' && d.S) {
+    if (d.ts && d.ts < (net.sts || 0)) return; net.sts = d.ts || net.sts || 0;
     const oj = JSON.stringify(d.O || []); if (oj !== net.oj) { net.oj = oj; net.online = d.O || []; renderPlayers(); renderLobby(); }
     const j = JSON.stringify(d.S);
     if (j !== net.lastJson) { net.lastJson = j; S = normalize(d.S); render(); }
@@ -1056,12 +1091,6 @@ function onPeerData(d) {
   } else if (d.t === 'role') showMsg('myMsg', d.nick ? '✅ Вы в турнире как ' + d.nick + '. Ждите жеребьёвку.' : (d.why || 'Такого ника нет в списке участников.'), !!d.nick);
 }
 document.addEventListener('click', () => { if (!isJudge) ensureAudio(); });
-setInterval(() => {   // сторож судьи: если вкладка «заснула» и пропала из брокера — возвращаемся
-  if (!isJudge || !ROOM_ID || !net.peer) return;
-  if (net.peer.destroyed) { netRestart(); return; }
-  if (net.peer.disconnected) { setNet('📡 Потеряна связь с брокером, переподключаюсь…', 'bad'); try { net.peer.reconnect(); } catch (e) { netRestart(); } }
-}, 5000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && isJudge && ROOM_ID && (!net.peer || net.peer.destroyed || net.peer.disconnected)) netRestart(); });   // звук для зрителей (нужен жест)
 
 // ---------- рендер ----------
 // ---------- рендер: шапка, участники ----------
