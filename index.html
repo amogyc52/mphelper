@@ -1625,7 +1625,9 @@ function bindStatic() {
   $('watchBtn').addEventListener('click', () => {
     const r = cleanRoom($('myRoomIn').value);
     if (!r) { showMsg('myMsg', 'Введите ID комнаты — его даёт судья (или откройте ссылку от судьи).', false); return; }
+    myNick = ''; draft = ''; try { localStorage.removeItem('hs-nick'); } catch (e) {} $('myNickIn').value = '';   // зритель не должен попадать в участники
     if (r !== ROOM_ID) applyRoom(r);
+    renderMyMatch(); renderCurrent();
     showMsg('myMsg', '👁 Подключаюсь как зритель: ход турнира будет обновляться сам.', true); netRestart();
   });
   $('myNickIn').value = myNick; $('myRoomIn').value = ROOM_ID;
