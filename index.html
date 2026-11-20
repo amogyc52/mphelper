@@ -952,7 +952,8 @@ function online(n) { return net.conns.some(c => c.open && c.nick && c.nick.toLow
 const net = { online: [], oj: '', seenDraw: undefined, dv: null, peer: null, conn: null, ok: false, conns: [], lastJson: '', rt: null };
 // Страница подключается ко ВСЕМ брокерам сразу: достаточно, чтобы у судьи и у зрителя был доступен хотя бы один общий.
 // Свой брокер можно добавить в список (адрес вида wss://хост:порт/путь).
-const MQ_BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081'];
+const MQ_BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081', 'wss://mqtt.eclipseprojects.io:443/mqtt', 'wss://broker-cn.emqx.io:8084/mqtt'];
+function brokerHosts() { return mq.cl.filter(c => c.connected).map(c => (c.hsUrl || '').replace(/^wss?:\/\//, '').split(/[:\/]/)[0]).join(', '); }
 const mq = { cl: [], seen: [] };
 function mqTopic(k) { return 'hs-shootout/' + ROOM_ID + '/' + k; }
 function mqUp() { return mq.cl.some(c => c.connected); }
@@ -964,6 +965,7 @@ function mqStart(topics, onMsg, onUp) {
   mq.seen = [];
   MQ_BROKERS.forEach(url => {
     const c = mqtt.connect(url, { clientId: 'hs-' + cid + '-' + Math.random().toString(16).slice(2, 6), clean: true, keepalive: 30, reconnectPeriod: 4000, connectTimeout: 8000 });
+    c.hsUrl = url;
     c.on('connect', () => { c.subscribe(topics.map(mqTopic)); if (onUp) onUp(); mqStatus(); });
     c.on('close', mqStatus);
     c.on('offline', mqStatus); c.on('error', () => {});
@@ -986,7 +988,7 @@ function viewChip() {
   if (isJudge || net.ok || !mq.cl.length || Date.now() - (net.localAt || 0) < 7000) return;
   const n = mq.cl.filter(c => c.connected).length, late = Date.now() - (net.t0 || 0) > 10000;
   if (!n) setNet(late ? '📡 Нет доступа к серверам связи (emqx / hivemq / mosquitto) — проверьте интернет или блокировки' : '📡 Подключаюсь к серверам связи…', late ? 'bad' : '');
-  else setNet('📡 Серверы связи доступны (' + n + '/' + MQ_BROKERS.length + '), ' + (net.gotState ? 'но судья сейчас не в сети — показано последнее состояние (судья должен быть в режиме «🔐 Судья» с открытой вкладкой, не в режиме инкогнито-зрителя)' : 'судья не найден: проверьте, что ID комнаты тот же, что у судьи, и что судья вошёл в «🔐 Судья»'), 'bad');
+  else setNet('📡 Серверы связи доступны (' + n + '/' + MQ_BROKERS.length + ': ' + brokerHosts() + '), ' + (net.gotState ? 'но судья сейчас не в сети — показано последнее состояние (судья должен быть в режиме «🔐 Судья» с открытой вкладкой, не в режиме инкогнито-зрителя)' : 'судья не найден: проверьте, что ID комнаты тот же, что у судьи, и что судья вошёл в «🔐 Судья»'), 'bad');
 }
 function setNet(text, cls) { const e = $('netChip'); e.hidden = false; e.textContent = text; e.className = 'chip ' + (cls || ''); }
 function hbMsg() { return { t: 'hb', O: net.conns.filter(c => c.open && c.nick).map(c => c.nick), T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
@@ -994,7 +996,7 @@ function snapshot() { return { t: 's', ts: Date.now(), O: net.conns.filter(c => 
 function updateNetChip() {
   if (!isJudge || !ROOM_ID) return;
   const n = mq.cl.filter(c => c.connected).length, names = net.conns.filter(c => c.open && c.nick).map(c => c.nick);
-  setNet(n ? '📡 Онлайн · серверов связи: ' + n + '/' + MQ_BROKERS.length + ' · игроков: ' + (names.length ? names.join(', ') : '0') : '📡 Нет доступа к серверам связи — работают только вкладки этого браузера', n ? 'ok' : 'bad');
+  setNet(n ? '📡 Онлайн · серверов связи: ' + n + '/' + MQ_BROKERS.length + ' (' + brokerHosts() + ') · игроков: ' + (names.length ? names.join(', ') : '0') : '📡 Нет доступа к серверам связи — работают только вкладки этого браузера', n ? 'ok' : 'bad');
 }
 // Вкладки одного браузера (судья + игрок/зритель во второй вкладке) обновляются мгновенно через BroadcastChannel,
 // интернет для этого не нужен — удобно проверять турнир в одиночку.
