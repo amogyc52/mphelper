@@ -120,6 +120,7 @@ ol.rules{padding-left:22px;margin:0} ol.rules li{margin:6px 0}
 .timer.warn{color:var(--warn)} .timer.danger{color:var(--red)} .timer.over{color:var(--red);animation:blink .6s infinite}
 .banner{background:#13281a;border:1px solid var(--acc-d);border-radius:10px;padding:9px 12px;margin:10px 0;text-align:center}
 .banner.red{background:#2a1215;border-color:var(--red)}
+.banner.key{background:#2a2410;border-color:var(--warn);color:#ffe9b3}
 .logbox{background:#0c120d;border:1px solid var(--line);border-radius:10px;padding:10px;font:13px ui-monospace,Consolas,monospace;max-height:260px;overflow:auto;white-space:pre-wrap;margin:0}
 .ctl{border-top:1px dashed var(--line);margin-top:14px;padding-top:6px}
 .ctl h3{margin-top:10px}
@@ -137,7 +138,7 @@ ol.rules{padding-left:22px;margin:0} ol.rules li{margin:6px 0}
 .dlist li{background:var(--card2);border-radius:8px;padding:5px 10px;font-size:14px;display:flex;gap:8px;align-items:center}
 .dlist li .tag{margin-left:auto;font-size:12px;color:var(--warn)}
 table.jl{width:100%;border-collapse:collapse;font-size:14px}
-table.jl td{padding:5px 6px;border-bottom:1px solid var(--line)}
+table.jl td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
 footer{padding:30px 0 50px;color:var(--muted);font-size:13px;text-align:center}
 .hero{padding:56px 0 24px;text-align:center}.hero .lead{margin:0 auto}.chips{justify-content:center}
 .lobby{background:linear-gradient(160deg,#16301e,#131b15 55%,#2a1317);border-color:#2f5a3b;box-shadow:0 0 40px #2ee56f14}
@@ -174,15 +175,15 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
 <section class="card lobby" id="join">
   <div id="playerBox">
     <h2>🎮 Вход в турнир</h2>
-    <p class="muted">Введите ID комнаты от судьи и свой ник — вы сразу попадёте в список участников. Жеребьёвка, сетка и ваш матч появятся на этом экране сами, обновлять страницу не нужно.</p>
-    <div class="row"><input type="text" id="myRoomIn" placeholder="ID комнаты (от судьи)" maxlength="64" spellcheck="false"><input type="text" id="myNickIn" placeholder="Ваш ник: Имя_Фамилия" maxlength="32" spellcheck="false"><button class="btn big" id="myNickBtn">Войти</button></div>
+    <p class="muted">Введите ID комнаты от судьи и свой ник — вы сразу попадёте в список участников. Зрителям достаточно ID комнаты (или ссылки от судьи) и кнопки «Смотреть» — ход турнира, таймер и вопросы обновляются в реальном времени, страницу обновлять не нужно.</p>
+    <div class="row"><input type="text" id="myRoomIn" placeholder="ID комнаты (от судьи)" maxlength="64" spellcheck="false"><input type="text" id="myNickIn" placeholder="Ваш ник: Имя_Фамилия" maxlength="32" spellcheck="false"><button class="btn big" id="myNickBtn">Войти</button><button class="btn ghost big" id="watchBtn">👁 Смотреть</button></div>
     <div class="msg" id="myMsg"></div>
     <div id="myMatch"></div>
   </div>
   <div id="judgeLobby" hidden>
     <h2>⚖️ Лобби судьи</h2>
-    <p class="muted">ID комнаты: <code id="roomId2" style="font-size:18px"></code> · игроки вводят его и ник и попадают в список сами.</p>
-    <div class="row"><button class="btn ghost sm" id="lobbyCopyId">Скопировать ID</button><button class="btn ghost sm" id="lobbyCopyLink">Скопировать ссылку для игроков</button></div>
+    <p class="muted">ID комнаты: <code id="roomId2" style="font-size:18px"></code> · игроки вводят его и ник и попадают в список сами; зрители открывают ссылку и видят всё вживую.</p>
+    <div class="row"><button class="btn ghost sm" id="lobbyCopyId">Скопировать ID</button><button class="btn ghost sm" id="lobbyCopyLink">Скопировать ссылку для игроков и зрителей</button></div>
     <p id="lobbyCount" class="small"></p>
     <button class="btn big" id="btnStartBig">🎲 Начать турнир</button>
     <button class="btn warn big" id="btnFinishBig" hidden>🏁 Завершить турнир</button>
@@ -248,7 +249,7 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
     <li>Проигрыш: время вышло, ответ неверный, ответа нет или «не знаю».</li>
     <li>Вопросы нельзя повторять. Если судья отклонил вопрос, нужно придумать новый. После 3 отклонённых подряд засчитывается поражение.</li>
     <li>Лимит: 10 вопросов от каждого. Если никто не проиграл, судья задаёт обоим сложные вопросы по админке до первой ошибки.</li>
-    <li>Участник без пары проходит экзамен: судья задаёт ему вопросы, при провале он вылетает. На формулировку своего вопроса у судьи времени нет, у отвечающего на ответ 1 минута.</li>
+    <li>Участник без пары проходит экзамен: судья задаёт ему вопросы (случайные из бланка вопросов судьи), при провале он вылетает. На формулировку своего вопроса у судьи времени нет, у отвечающего на ответ 1 минута.</li>
     <li>Решение судьи окончательное.</li>
     <li>Проигравший вылетает, победитель проходит дальше.</li>
   </ol>
@@ -280,7 +281,7 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
   <h2>⚙ Панель судьи</h2>
   <div class="notice">
     Вы видите <b>живое состояние</b> (оно хранится в localStorage вашего браузера и не теряется при обновлении страницы).
-    Зрители видят только объект <code>TOURNAMENT_STATE</code> из файла. Чтобы опубликовать изменения: «Экспорт состояния» → вставить код в index.html → перезалить сайт.
+    Зрители получают его вживую через интернет, пока у вас открыта эта вкладка. Если связи нет, они видят объект <code>TOURNAMENT_STATE</code> из файла. Чтобы опубликовать изменения в файле: «Экспорт состояния» → вставить код в index.html → перезалить сайт.
     Управление самим матчем — в блоке «Текущий матч» выше (кнопки появляются там же).
   </div>
   <div class="grid2">
@@ -293,8 +294,8 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
       </div>
       <div class="sub"><b>🔑 Комната (P2P)</b>
         <div class="row"><code id="roomId" style="font-size:18px"></code></div>
-        <div class="row"><button class="btn sm" id="btnRoomNew">Сгенерировать новый ID</button><button class="btn ghost sm" id="btnRoomCopy">Скопировать ID</button><button class="btn ghost sm" id="btnRoomLink">Скопировать ссылку для игроков</button></div>
-        <div class="muted small">Игроки вводят этот ID и свой ник (или открывают ссылку). Менять файл не нужно.</div></div>
+        <div class="row"><button class="btn sm" id="btnRoomNew">Сгенерировать новый ID</button><button class="btn ghost sm" id="btnRoomCopy">Скопировать ID</button><button class="btn ghost sm" id="btnRoomLink">Скопировать ссылку для игроков и зрителей</button></div>
+        <div class="muted small">Игроки вводят этот ID и свой ник (или открывают ссылку). Зрители просто открывают ссылку. Менять файл не нужно.</div></div>
       <div class="sub"><b>🧪 Тест в одиночку</b> <span class="muted small">— добавить тестовых участников Test_Player1…</span>
         <div class="row"><input type="number" id="testN" value="5" min="2" max="64" style="width:80px"><button class="btn ghost sm" id="btnTest">Добавить тестовых</button></div></div>
       <label class="check"><input type="checkbox" id="optThird"> Играть матч за 3-е место (до жеребьёвки)</label>
@@ -327,6 +328,19 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
     <h3>Список участников</h3>
     <table class="jl"><tbody id="judgeList"></tbody></table>
   </div>
+  <div class="sub" id="bankSec">
+    <h3>📋 Бланк вопросов судьи <span class="muted small" id="bankCount"></span></h3>
+    <div class="notice">Эти вопросы судья задаёт <b>случайно</b> (кнопка «🎲 Случайный вопрос из бланка» в блоке «Текущий матч»), когда соперник участника — судья (экзамен без пары) или идут «Вопросы судьи». Вопросы не повторяются, пока не пройдёт весь бланк. <b>Эталонные ответы видит только судья</b>: зрителям и игрокам бланк не передаётся и в экспорт состояния не попадает. Бланк хранится в вашем браузере и сохраняется при сбросе турнира.</div>
+    <div class="muted small">Добавить вопросы — по одному на строку. Формат: <code>Вопрос | Эталонный ответ</code> (ответ после «|» необязателен):</div>
+    <textarea id="bankText" placeholder="Какое наказание за оффтоп в репорте? | Мут 30 минут&#10;Сколько времени даётся на ответ в репорте?"></textarea>
+    <div class="row">
+      <button class="btn" id="btnBankAdd">Добавить в бланк</button>
+      <button class="btn ghost" id="btnBankRe">Сбросить отметки «задан»</button>
+      <button class="btn ghost" id="btnBankClear">Очистить бланк</button>
+    </div>
+    <div class="msg" id="bankMsg"></div>
+    <table class="jl"><tbody id="bankList"></tbody></table>
+  </div>
   <div class="sub">
     <h3>Экспорт / импорт состояния</h3>
     <textarea id="stateText" style="min-height:140px" placeholder="Нажмите «Экспорт состояния». Для импорта вставьте сюда код (const TOURNAMENT_STATE = {...}; или чистый JSON) и нажмите «Импорт»."></textarea>
@@ -339,7 +353,7 @@ details.alt summary{cursor:pointer;color:var(--acc);margin-bottom:8px}.card{tran
   </div>
 </section>
 
-<footer>Хелпер-перестрелка · Rodina RP · Судья: <span id="footJudge"></span> · версия 9 (связь через MQTT)</footer>
+<footer>Хелпер-перестрелка · Rodina RP · Судья: <span id="footJudge"></span> · версия 10 (бланк вопросов, связь через MQTT)</footer>
 </div>
 
 <!-- Модалка жеребьёвки -->
@@ -394,15 +408,20 @@ const QUESTION_LIMIT = 10;                             // лимит вопро�
 const MAX_REJECTS    = 3;                              // отклонённых вопросов подряд до поражения
 const ANSWER_SECONDS = 60;                             // время на ответ
 const FORMULATE_SECONDS = 60;                          // время спрашивающему на формулировку вопроса
-// P2P (PeerJS): ID комнаты НЕ нужно менять в коде. Судья генерирует его кнопкой в панели судьи,
+// ПОСТОЯННАЯ КОМНАТА (необязательно). Если вписать сюда ID (латиница/цифры/«-»/«_», от 4 символов),
+// то все зрители и игроки будут автоматически подключаться к ней сразу при открытии сайта,
+// без ввода ID и без ссылки с ?room=. Судья тоже будет использовать эту комнату.
+// Пример: const FIXED_ROOM = 'rodina-helpers-2026';
+const FIXED_ROOM = '';
+// P2P: ID комнаты можно не менять в коде. Судья генерирует его кнопкой в панели судьи,
 // игроки вводят его на сайте (или открывают ссылку вида ...index.html?room=ID).
 function cleanRoom(v) { v = String(v || '').trim(); return /^[A-Za-z0-9][A-Za-z0-9_-]{3,60}$/.test(v) ? v : ''; }
 let ROOM_ID = '';
 try {
   const q = cleanRoom(new URLSearchParams(location.search).get('room'));
-  ROOM_ID = q || cleanRoom(localStorage.getItem('hs-room'));
+  ROOM_ID = q || cleanRoom(FIXED_ROOM) || cleanRoom(localStorage.getItem('hs-room'));
   if (q) localStorage.setItem('hs-room', q);
-} catch (e) {}
+} catch (e) { ROOM_ID = cleanRoom(FIXED_ROOM); }
 const STORAGE_KEY    = 'helper-shootout-state-v1';     // ключ localStorage судьи
 
 /* =====================================================================
@@ -410,9 +429,10 @@ const STORAGE_KEY    = 'helper-shootout-state-v1';     // ключ localStorage 
    ---------------------------------------------------------------------
    Как это работает (без сервера):
    • Судья в режиме судьи работает с «живым» состоянием, которое лежит в localStorage
-     его браузера. Оно сохраняется после каждого действия.
-   • Все остальные посетители видят ТОЛЬКО объект TOURNAMENT_STATE ниже.
-   • Чтобы показать зрителям свежий ход турнира: панель судьи → «Экспорт состояния» →
+     его браузера. Оно сохраняется после каждого действия и в реальном времени
+     рассылается зрителям и игрокам (бланк вопросов и эталонные ответы НЕ рассылаются).
+   • Если связи нет, посетители видят ТОЛЬКО объект TOURNAMENT_STATE ниже.
+   • Чтобы показать зрителям свежий ход турнира без связи: панель судьи → «Экспорт состояния» →
      «Скопировать» → заменить в index.html весь блок `const TOURNAMENT_STATE = {...};`
      на скопированный → перезалить файл на хостинг.
    ===================================================================== */
@@ -431,7 +451,8 @@ function emptyState() {
   return {
     v: 1, phase: 'reg', regOpen: true, thirdPlace: false, nextId: 1,
     players: [], settings: { examQuestions: 3, examNeed: 0, tz: TIMEZONE_LABEL },
-    draw: null, seeds: {}, rounds: [], third: null, currentId: null, log: {}
+    draw: null, seeds: {}, rounds: [], third: null, currentId: null, log: {},
+    bank: [], bankUsed: [], bankNext: 1
   };
 }
 function normalize(st) {
@@ -440,10 +461,15 @@ function normalize(st) {
   out.settings = Object.assign(emptyState().settings, (st && st.settings) || {});
   if (!Array.isArray(out.players)) out.players = [];
   if (!Array.isArray(out.rounds)) out.rounds = [];
+  if (!Array.isArray(out.bank)) out.bank = [];
+  if (!Array.isArray(out.bankUsed)) out.bankUsed = [];
+  if (!isFinite(out.bankNext) || out.bankNext < 1) out.bankNext = 1;
   if (!out.log || typeof out.log !== 'object') out.log = {};
   if (!out.seeds || typeof out.seeds !== 'object') out.seeds = {};
   return out;
 }
+// Публичная копия состояния: БЕЗ бланка вопросов и эталонных ответов (уходит зрителям и в экспорт).
+function pubState(st) { const o = Object.assign({}, st); o.bank = []; o.bankUsed = []; o.bankNext = 1; return o; }
 function rnd(n) { // честный случайный индекс 0..n-1
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     const a = new Uint32Array(1), lim = Math.floor(4294967296 / n) * n;
@@ -525,6 +551,34 @@ function importCodes(st, text) {
     else { st.players.push({ id: st.nextId++, nick: n }); rep.added.push(n); }
   });
   return rep;
+}
+
+// ---------- бланк вопросов судьи ----------
+// Строки вида «Вопрос | Эталонный ответ» (ответ необязателен).
+function addBank(st, text) {
+  const rep = { added: 0, dup: 0, bad: 0 };
+  String(text).split(/\r?\n/).map(s => s.trim()).filter(Boolean).forEach(line => {
+    const i = line.indexOf('|');
+    const q = (i < 0 ? line : line.slice(0, i)).trim().slice(0, 500);
+    const a = (i < 0 ? '' : line.slice(i + 1)).trim().slice(0, 500);
+    if (!q) { rep.bad++; return; }
+    if (st.bank.some(x => x.q.toLowerCase() === q.toLowerCase())) { rep.dup++; return; }
+    st.bank.push({ id: st.bankNext++, q: q, a: a }); rep.added++;
+  });
+  return rep;
+}
+// Случайный вопрос без повторов; когда бланк пройден целиком — начинаем круг заново.
+function bankPick(st) {
+  if (!st.bank.length) return null;
+  let pool = st.bank.filter(x => st.bankUsed.indexOf(x.id) < 0), reset = false;
+  if (!pool.length) { st.bankUsed = []; pool = st.bank.slice(); reset = true; }
+  const it = pool[rnd(pool.length)]; st.bankUsed.push(it.id);
+  return { item: it, reset: reset };
+}
+// Эталонный ответ к текущему вопросу судьи (по тексту вопроса; только для судьи).
+function bankRef(st, m) {
+  if (!m || !m.live || !judgeMode(m) || m.live.phase !== 'answer' || !m.live.qText) return null;
+  return st.bank.find(x => x.q === m.live.qText) || null;
 }
 
 // ---------- жеребьёвка и сетка ----------
@@ -689,7 +743,7 @@ function duelAnswerText(st, m, text) {
 }
 // Вопрос судьи (экзамен или «Вопросы судьи»): у судьи на формулировку времени НЕТ ограничения ('jask'),
 // минута на ответ запускается только у отвечающего, когда судья отправил вопрос.
-function judgeMode(m) { return m.kind === 'exam' || (m.kind === 'duel' && m.live.mode === 'judge'); }
+function judgeMode(m) { return m.kind === 'exam' || (m.kind === 'duel' && m.live && m.live.mode === 'judge'); }
 function judgeAsk(st, m, text) {
   if (!isLive(m) || !judgeMode(m) || m.live.phase !== 'jask') return false;
   const L = m.live; L.phase = 'answer'; L.qText = text || ''; L.aText = ''; if (L.jq) L.jq.aT = { a: '', b: '' };
@@ -885,18 +939,18 @@ function timerStart() {
 }
 
 /* =====================================================================
-   P2P-СВЯЗЬ (PeerJS): судья — хост, зрители и игроки подключаются к нему.
+   СВЯЗЬ В РЕАЛЬНОМ ВРЕМЕНИ (публичные MQTT-брокеры по WebSocket): судья — хост, зрители и игроки подключаются к нему.
    • Судья (режим судьи) открывает «комнату» ROOM_ID и рассылает всем состояние и таймер.
-   • Зрители видят ход турнира вживую. Если связи нет — показывается TOURNAMENT_STATE.
-   • Игрок вводит свой ник в блоке «Я участник» и отправляет вопрос/ответ/«Не знаю» сам.
+   • Зрители видят ход турнира вживую (сетка, текущий матч, вопросы, таймер, лог). Если связи нет — показывается TOURNAMENT_STATE.
+   • Бланк вопросов и эталонные ответы судьи наружу НЕ отправляются (см. pubState).
+   • Игрок вводит свой ник в блоке «Вход» и отправляет вопрос/ответ/«Не знаю» сам.
      Судья видит всё в логе и выносит вердикт. Ник вводится без пароля — доверяйте логу судьи.
-   • Нужен интернет: связь идёт через публичные MQTT-брокеры (EMQX, HiveMQ, Mosquitto) по WebSocket. Судья держит вкладку открытой.
+   • Нужен интернет. Судья держит вкладку открытой.
    ===================================================================== */
 function isOn(n) { const k = String(n).toLowerCase(); return isJudge ? online(n) : net.online.some(x => String(x).toLowerCase() === k); }
 function online(n) { return net.conns.some(c => c.open && c.nick && c.nick.toLowerCase() === String(n).toLowerCase()); }
 const net = { online: [], oj: '', seenDraw: undefined, dv: null, peer: null, conn: null, ok: false, conns: [], lastJson: '', rt: null };
-// ---------- Связь через публичные MQTT-брокеры (WebSocket, без WebRTC и без своего сервера) ----------
-// Страница подключается ко ВСЕМ брокерам сразу: достаточно, чтобы у судьи и у игрока был доступен хотя бы один общий.
+// Страница подключается ко ВСЕМ брокерам сразу: достаточно, чтобы у судьи и у зрителя был доступен хотя бы один общий.
 // Свой брокер можно добавить в список (адрес вида wss://хост:порт/путь).
 const MQ_BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081'];
 const mq = { cl: [], seen: [] };
@@ -912,7 +966,7 @@ function mqStart(topics, onMsg, onUp) {
     const c = mqtt.connect(url, { clientId: 'hs-' + cid + '-' + Math.random().toString(16).slice(2, 6), clean: true, keepalive: 30, reconnectPeriod: 4000, connectTimeout: 8000 });
     c.on('connect', () => { c.subscribe(topics.map(mqTopic)); if (onUp) onUp(); mqStatus(); });
     c.on('close', mqStatus);
-c.on('offline', mqStatus); c.on('error', () => {});
+    c.on('offline', mqStatus); c.on('error', () => {});
     c.on('message', (t, buf) => {
       let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; }
       if (!d || !d._m || mq.seen.indexOf(d._m) >= 0) return;   // одно и то же сообщение может прийти от нескольких брокеров
@@ -936,14 +990,14 @@ function viewChip() {
 }
 function setNet(text, cls) { const e = $('netChip'); e.hidden = false; e.textContent = text; e.className = 'chip ' + (cls || ''); }
 function hbMsg() { return { t: 'hb', O: net.conns.filter(c => c.open && c.nick).map(c => c.nick), T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
-function snapshot() { return { t: 's', ts: Date.now(), O: net.conns.filter(c => c.open && c.nick).map(c => c.nick), S: S, T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
+function snapshot() { return { t: 's', ts: Date.now(), O: net.conns.filter(c => c.open && c.nick).map(c => c.nick), S: pubState(S), T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
 function updateNetChip() {
   if (!isJudge || !ROOM_ID) return;
   const n = mq.cl.filter(c => c.connected).length, names = net.conns.filter(c => c.open && c.nick).map(c => c.nick);
   setNet(n ? '📡 Онлайн · серверов связи: ' + n + '/' + MQ_BROKERS.length + ' · игроков: ' + (names.length ? names.join(', ') : '0') : '📡 Нет доступа к серверам связи — работают только вкладки этого браузера', n ? 'ok' : 'bad');
 }
 // Вкладки одного браузера (судья + игрок/зритель во второй вкладке) обновляются мгновенно через BroadcastChannel,
-// интернет и PeerJS для этого не нужны — удобно проверять турнир в одиночку.
+// интернет для этого не нужен — удобно проверять турнир в одиночку.
 let chan = null;
 const cid = Math.random().toString(36).slice(2), localConns = {};
 function linked() { return net.ok || Date.now() - (net.localAt || 0) < 7000; }
@@ -1239,7 +1293,9 @@ try { myNick = localStorage.getItem('hs-nick') || ''; } catch (e) {}
 function myPanel(m) {
   if (isJudge || !myNick) return null;
   const L = m.live, key = myNick.toLowerCase();
-  const side = nick(S, m.a).toLowerCase() === key ? 'a' : nick(S, m.b).toLowerCase() === key ? 'b' : null;
+  const side = m.kind === 'exam'
+    ? (nick(S, L.pid).toLowerCase() === key ? 'x' : null)
+    : (nick(S, m.a).toLowerCase() === key ? 'a' : nick(S, m.b).toLowerCase() === key ? 'b' : null);
   if (!side || !linked()) return null;
   const ta = h('textarea', { id: 'myTa', maxlength: 500, placeholder: 'Текст…' }); ta.value = draft;
   ta.addEventListener('input', () => { draft = ta.value; });
@@ -1340,8 +1396,26 @@ let jDraft = '';
 function askBox(m) {
   const ta = h('textarea', { id: 'jQ', maxlength: 500, placeholder: 'Текст вопроса судьи (время на формулировку не ограничено)…' }); ta.value = jDraft;
   ta.addEventListener('input', () => { jDraft = ta.value; });
-  return h('div', { class: 'sub' }, h('b', null, '⚖️ Вопрос судьи'), ta,
+  const randomAsk = () => {
+    let asked = false;
+    act(() => {
+      const r = bankPick(S); if (!r) return;
+      if (r.reset) log(S, m, 'Бланк вопросов пройден целиком — вопросы пошли по кругу');
+      asked = judgeAsk(S, m, r.item.q);
+    });
+    if (asked) phaseTimer();
+  };
+  return h('div', { class: 'sub' }, h('b', null, '⚖️ Вопрос судьи'),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn warn', disabled: !S.bank.length, onclick: randomAsk }, '🎲 Случайный вопрос из бланка (' + S.bank.length + ', не задано: ' + S.bank.filter(x => S.bankUsed.indexOf(x.id) < 0).length + ')'),
+      S.bank.length ? null : h('span', { class: 'small muted' }, 'Бланк пуст — добавьте вопросы в панели судьи')),
+    h('div', { class: 'small muted' }, 'или свой вопрос:'), ta,
     h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => { const t = jDraft.trim().slice(0, 500); jDraft = ''; act(() => { judgeAsk(S, m, t); }); phaseTimer(); } }, '➡ Задать вопрос и запустить 1 минуту ответа')));
+}
+// Эталонный ответ из бланка — виден только судье (в рассылку зрителям не попадает).
+function addRef(box, m) {
+  const r = bankRef(S, m);
+  if (r && r.a) box.appendChild(h('div', { class: 'banner key' }, '🔑 Эталонный ответ (видите только вы): ' + r.a));
 }
 function renderControls() {
   const box = $('matchControls'); clear(box);
@@ -1365,6 +1439,7 @@ function renderControls() {
   const L = m.live;
   if (m.kind === 'exam') {
     if (L.phase === 'jask') box.appendChild(askBox(m));
+    addRef(box, m);
     box.appendChild(h('div', { class: 'row' },
       h('button', { class: 'btn', onclick: () => verdict(ms => examAnswer(S, m, true, ms)) }, '✅ Верно'),
       h('button', { class: 'btn danger', onclick: () => verdict(ms => examAnswer(S, m, false, ms)) }, '❌ Неверно / не знаю / время вышло')));
@@ -1389,6 +1464,7 @@ function renderControls() {
         h('button', { class: 'btn sm', disabled: jq[side] !== null || L.phase !== 'answer', onclick: () => verdict(ms => judgeAnswer(S, m, side, true, ms)) }, '✅ Верно'),
         h('button', { class: 'btn danger sm', disabled: jq[side] !== null || L.phase !== 'answer', onclick: () => verdict(ms => judgeAnswer(S, m, side, false, ms)) }, '❌ Ошибся')));
     if (L.phase === 'jask') box.appendChild(askBox(m));
+    addRef(box, m);
     box.appendChild(h('div', { class: 'row', style: 'align-items:stretch' }, jb('a'), jb('b')));
   }
   const sel = h('select', { onchange: e => { lossReason = e.target.value; } }, Object.keys(REASONS).map(k => { const o = h('option', { value: k }, REASONS[k]); if (k === lossReason) o.selected = true; return o; }));
@@ -1413,6 +1489,18 @@ function renderResults() {
 
 // ---------- рендер: панель судьи ----------
 function setIfIdle(el, v) { if (el && document.activeElement !== el && String(el.value) !== String(v)) el.value = v; }
+function renderBank() {
+  const tb = $('bankList'); clear(tb);
+  const left = S.bank.filter(x => S.bankUsed.indexOf(x.id) < 0).length;
+  $('bankCount').textContent = '· вопросов: ' + S.bank.length + ', ещё не задано: ' + left;
+  $('btnBankClear').disabled = !S.bank.length; $('btnBankRe').disabled = !S.bankUsed.length;
+  S.bank.forEach((it, i) => tb.appendChild(h('tr', null,
+    h('td', { style: 'width:34px' }, String(i + 1)),
+    h('td', null, h('div', null, it.q), it.a ? h('div', { class: 'small muted' }, '🔑 ' + it.a) : null),
+    h('td', { style: 'text-align:right;white-space:nowrap' },
+      S.bankUsed.indexOf(it.id) >= 0 ? h('span', { class: 'badge done' }, 'задан') : null, ' ',
+      h('button', { class: 'btn ghost sm', onclick: () => { act(() => { S.bank = S.bank.filter(x => x.id !== it.id); S.bankUsed = S.bankUsed.filter(x => x !== it.id); }); } }, '🗑')))));
+}
 function renderJudge() {
   $('judge').hidden = !isJudge;
   if (!isJudge) return;
@@ -1428,6 +1516,7 @@ function renderJudge() {
     h('td', { style: 'text-align:right;white-space:nowrap' },
       h('button', { class: 'btn ghost sm', onclick: () => renameP(p) }, '✏'), ' ',
       h('button', { class: 'btn ghost sm', disabled: !reg, onclick: () => { ask('Удалить ' + p.nick + '?', () => { act(() => { S.players = S.players.filter(x => x.id !== p.id); }); }); } }, '🗑')))));
+  renderBank();
 }
 function renameP(p) {
   const v = prompt('Новый ник (Имя_Фамилия):', p.nick); if (v === null) return;
@@ -1484,9 +1573,9 @@ function startDraw() {
 }
 
 // ---------- импорт / экспорт состояния ----------
-function exportCode() {
+function exportCode() {   // бланк вопросов в публичный экспорт НЕ попадает
   return '// Вставьте этот блок в index.html вместо старого блока const TOURNAMENT_STATE (до точки с запятой)\n' +
-         'const TOURNAMENT_STATE = ' + JSON.stringify(S, null, 2) + ';\n';
+         'const TOURNAMENT_STATE = ' + JSON.stringify(pubState(S), null, 2) + ';\n';
 }
 function parseStateText(text) {
   const k = text.indexOf('TOURNAMENT_STATE');            // пропускаем комментарии до самого объекта
@@ -1518,6 +1607,13 @@ function bindStatic() {
     if (r !== ROOM_ID) { applyRoom(r); showMsg('myMsg', 'Подключаюсь к комнате…', true); netRestart(); }
     else if (linked()) netSend({ t: 'hello', nick: n });
     else { showMsg('myMsg', 'Подключаюсь к судье…', true); netRestart(); }
+  });
+  // зритель: подключение к комнате без ника
+  $('watchBtn').addEventListener('click', () => {
+    const r = cleanRoom($('myRoomIn').value);
+    if (!r) { showMsg('myMsg', 'Введите ID комнаты — его даёт судья (или откройте ссылку от судьи).', false); return; }
+    if (r !== ROOM_ID) applyRoom(r);
+    showMsg('myMsg', '👁 Подключаюсь как зритель: ход турнира будет обновляться сам.', true); netRestart();
   });
   $('myNickIn').value = myNick; $('myRoomIn').value = ROOM_ID;
   // таймер
@@ -1554,8 +1650,8 @@ function bindStatic() {
   $('myNickIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('myNickBtn').click(); });
   $('drawClose').addEventListener('click', () => { $('drawModal').hidden = true; });
   $('btnReset').addEventListener('click', () => {
-    ask('Сбросить турнир? Сетка, результаты, расписание и логи будут удалены. Список участников сохранится.', () => {
-    act(() => { const keep = S.players, nid = S.nextId, set = S.settings, third = S.thirdPlace; S = emptyState(); S.players = keep; S.nextId = nid; S.settings = set; S.thirdPlace = third; });
+    ask('Сбросить турнир? Сетка, результаты, расписание и логи будут удалены. Список участников и бланк вопросов сохранятся.', () => {
+    act(() => { const keep = S.players, nid = S.nextId, set = S.settings, third = S.thirdPlace, bank = S.bank, bn = S.bankNext; S = emptyState(); S.players = keep; S.nextId = nid; S.settings = set; S.thirdPlace = third; S.bank = bank; S.bankNext = bn; });
     timerReset();
     });
   });
@@ -1567,7 +1663,7 @@ function bindStatic() {
   $('tzInput').addEventListener('change', e => act(() => { S.settings.tz = e.target.value.trim() || TIMEZONE_LABEL; }));
   $('btnUndo').addEventListener('click', undo);
   $('btnRoomNew').addEventListener('click', () => {
-    ask('Сгенерировать новый ID? Подключённые игроки потеряют связь и должны будут ввести новый ID.', () => { applyRoom(genRoom()); netRestart(); renderJudge(); });
+    ask('Сгенерировать новый ID? Подключённые игроки и зрители потеряют связь и должны будут ввести новый ID.', () => { applyRoom(genRoom()); netRestart(); renderJudge(); });
   });
   $('btnRoomCopy').addEventListener('click', e => copyText(ROOM_ID, e.target));
   $('btnRoomLink').addEventListener('click', e => copyText(location.href.split(/[?#]/)[0] + '?room=' + ROOM_ID, e.target));
@@ -1589,13 +1685,22 @@ function bindStatic() {
     showMsg('addMsg', reportText(rep), rep.added.length > 0 && !rep.bad.length); if (rep.added.length) $('importCodes').value = '';
   });
 
+  // бланк вопросов судьи
+  $('btnBankAdd').addEventListener('click', () => {
+    let rep; act(() => { rep = addBank(S, $('bankText').value); });
+    showMsg('bankMsg', 'Добавлено: ' + rep.added + (rep.dup ? ' · повторов пропущено: ' + rep.dup : '') + (rep.bad ? ' · пустых строк: ' + rep.bad : ''), rep.added > 0);
+    if (rep.added) $('bankText').value = '';
+  });
+  $('btnBankRe').addEventListener('click', () => act(() => { S.bankUsed = []; }));
+  $('btnBankClear').addEventListener('click', () => { ask('Удалить ВСЕ вопросы из бланка?', () => { act(() => { S.bank = []; S.bankUsed = []; }); }); });
+
   // экспорт / импорт
-  $('btnExport').addEventListener('click', () => { $('stateText').value = exportCode(); showMsg('stateMsg', 'Готово. Нажмите «Скопировать» и вставьте в index.html вместо TOURNAMENT_STATE.', true); });
+  $('btnExport').addEventListener('click', () => { $('stateText').value = exportCode(); showMsg('stateMsg', 'Готово (бланк вопросов в экспорт не входит). Нажмите «Скопировать» и вставьте в index.html вместо TOURNAMENT_STATE.', true); });
   $('btnCopyState').addEventListener('click', () => { if (!$('stateText').value) $('stateText').value = exportCode(); copyText($('stateText').value, $('btnCopyState')); });
   $('btnImportState').addEventListener('click', () => {
     try {
       const st = parseStateText($('stateText').value);
-      ask('Заменить текущее живое состояние импортированным?', () => { act(() => { S = st; }); showMsg('stateMsg', 'Состояние импортировано.', true); });
+      ask('Заменить текущее живое состояние импортированным? (Бланк вопросов сохранится.)', () => { act(() => { const bank = S.bank, bu = S.bankUsed, bn = S.bankNext; S = st; if (!S.bank.length) { S.bank = bank; S.bankUsed = bu; S.bankNext = bn; } }); showMsg('stateMsg', 'Состояние импортировано.', true); });
     } catch (er) { showMsg('stateMsg', 'Ошибка импорта: ' + er.message, false); }
   });
   window.addEventListener('resize', drawLines);
