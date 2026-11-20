@@ -986,7 +986,7 @@ function viewChip() {
   if (isJudge || net.ok || !mq.cl.length || Date.now() - (net.localAt || 0) < 7000) return;
   const n = mq.cl.filter(c => c.connected).length, late = Date.now() - (net.t0 || 0) > 10000;
   if (!n) setNet(late ? '📡 Нет доступа к серверам связи (emqx / hivemq / mosquitto) — проверьте интернет или блокировки' : '📡 Подключаюсь к серверам связи…', late ? 'bad' : '');
-  else setNet('📡 Серверы связи доступны (' + n + '/' + MQ_BROKERS.length + '), ' + (net.gotState ? 'но судья сейчас не в сети — показано последнее состояние' : 'судья не найден: проверьте ID комнаты, судья должен войти в «🔐 Судья»'), 'bad');
+  else setNet('📡 Серверы связи доступны (' + n + '/' + MQ_BROKERS.length + '), ' + (net.gotState ? 'но судья сейчас не в сети — показано последнее состояние (судья должен быть в режиме «🔐 Судья» с открытой вкладкой, не в режиме инкогнито-зрителя)' : 'судья не найден: проверьте, что ID комнаты тот же, что у судьи, и что судья вошёл в «🔐 Судья»'), 'bad');
 }
 function setNet(text, cls) { const e = $('netChip'); e.hidden = false; e.textContent = text; e.className = 'chip ' + (cls || ''); }
 function hbMsg() { return { t: 'hb', O: net.conns.filter(c => c.open && c.nick).map(c => c.nick), T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
@@ -1029,8 +1029,10 @@ function applyRoom(id) {
   if ($('myRoomIn')) $('myRoomIn').value = id;
 }
 openChan();
-setInterval(() => {   // «пульс» раз в 2.5 с: присутствие игроков, состояние, таймер
+let lastPulse = 0;
+function pulse() {   // «пульс» раз в 2.5 с: присутствие игроков, состояние, таймер
   const now = Date.now();
+  if (now - lastPulse < 2000) return; lastPulse = now;
   if (isJudge) {
     net.conns = net.conns.filter(c => { if (c.local && now - c.seen > 9000) { delete localConns[c.cid]; return false; } return true; });
     if (chan) chan.postMessage(snapshot());
@@ -1039,10 +1041,16 @@ setInterval(() => {   // «пульс» раз в 2.5 с: присутствие
   } else {
     if (chan) { chan.postMessage({ cid: cid, t: 'ping' }); if (myNick) chan.postMessage({ cid: cid, t: 'hello', nick: myNick }); }
     if (mq.cl.length) { mqPub('in', { cid: cid, t: 'ping' }); if (myNick) mqPub('in', { cid: cid, t: 'hello', nick: myNick }); }
-    if (net.ok && now - (net.mqAt || 0) > 12000) { net.ok = false; renderControls(); renderCurrent(); }
+    if (net.ok && now - (net.mqAt || 0) > 45000) { net.ok = false; renderControls(); renderCurrent(); }
     viewChip();
   }
-}, 2500);
+}
+setInterval(pulse, 2500);
+// Таймер в Web Worker не замедляется, когда вкладка в фоне или свёрнута: судья остаётся «в сети».
+try {
+  const pw = new Worker(URL.createObjectURL(new Blob(['setInterval(function(){postMessage(1)},2500)'], { type: 'text/javascript' })));
+  pw.onmessage = pulse;
+} catch (e) {}
 function netBroadcast() {
   if (!isJudge) return;
   const msg = snapshot(); if (chan) chan.postMessage(msg);
@@ -1121,7 +1129,8 @@ function onPeerMsg(c, d) {   // сообщения игроков (провер�
 function startClient() {
   net.mqAt = 0; net.sts = 0; net.t0 = Date.now(); net.gotState = false;
   mqStart(['s', 'e', 'hb', 'to/' + cid], (t, d) => {
-    if (d.t === 's') net.gotState = true; else mqJudgeSeen();   // retained-состояние само по себе не доказывает, что судья онлайн
+    if (d.t === 's') { net.gotState = true; if (d.ts && Math.abs(Date.now() - d.ts) < 20000) mqJudgeSeen(); }   // старое retained-состояние не доказывает, что судья онлайн, а свежее — доказывает
+    else mqJudgeSeen();
     onPeerData(d);
   });
   viewChip();
