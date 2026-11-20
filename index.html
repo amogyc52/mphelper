@@ -412,7 +412,7 @@ const FORMULATE_SECONDS = 60;                          // время спраш�
 // то все зрители и игроки будут автоматически подключаться к ней сразу при открытии сайта,
 // без ввода ID и без ссылки с ?room=. Судья тоже будет использовать эту комнату.
 // Пример: const FIXED_ROOM = 'rodina-helpers-2026';
-const FIXED_ROOM = '';
+const FIXED_ROOM = 'rodina-helpers-k7x2m9';
 // P2P: ID комнаты можно не менять в коде. Судья генерирует его кнопкой в панели судьи,
 // игроки вводят его на сайте (или открывают ссылку вида ...index.html?room=ID).
 function cleanRoom(v) { v = String(v || '').trim(); return /^[A-Za-z0-9][A-Za-z0-9_-]{3,60}$/.test(v) ? v : ''; }
