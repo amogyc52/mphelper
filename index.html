@@ -988,7 +988,7 @@ function viewChip() {
   if (isJudge || net.ok || !mq.cl.length || Date.now() - (net.localAt || 0) < 7000) return;
   const n = mq.cl.filter(c => c.connected).length, late = Date.now() - (net.t0 || 0) > 10000;
   if (!n) setNet(late ? '📡 Нет доступа к серверам связи (emqx / hivemq / mosquitto) — проверьте интернет или блокировки' : '📡 Подключаюсь к серверам связи…', late ? 'bad' : '');
-  else setNet('📡 Серверы связи доступны (' + n + '/' + MQ_BROKERS.length + ': ' + brokerHosts() + '), ' + (net.gotState ? 'но судья сейчас не в сети — показано последнее состояние (судья должен быть в режиме «🔐 Судья» с открытой вкладкой, не в режиме инкогнито-зрителя)' : 'судья не найден: проверьте, что ID комнаты тот же, что у судьи, и что судья вошёл в «🔐 Судья»'), 'bad');
+  else setNet('📡 Серверы связи доступны (' + n + '/' + MQ_BROKERS.length + ': ' + brokerHosts() + '), ' + (net.gotState ? 'но судья сейчас не в сети — показано последнее состояние (судья должен быть в режиме «🔐 Судья» с открытой вкладкой) [диагностика: сообщений получено ' + (net.msgN || 0) + ', последнее «' + (net.lastT || '—') + '», состоянию судьи ' + (net.sAge != null ? Math.round(net.sAge / 1000) + ' с' : '?') + ', комната ' + ROOM_ID + ']' : 'судья не найден: проверьте, что ID комнаты тот же, что у судьи, и что судья вошёл в «🔐 Судья»'), 'bad');
 }
 function setNet(text, cls) { const e = $('netChip'); e.hidden = false; e.textContent = text; e.className = 'chip ' + (cls || ''); }
 function hbMsg() { return { t: 'hb', O: net.conns.filter(c => c.open && c.nick).map(c => c.nick), T: { rem: T.rem, total: T.total, running: T.running, touched: T.touched } }; }
@@ -1038,7 +1038,7 @@ function pulse() {   // «пульс» раз в 2.5 с: присутствие 
   if (isJudge) {
     net.conns = net.conns.filter(c => { if (c.local && now - c.seen > 9000) { delete localConns[c.cid]; return false; } return true; });
     if (chan) chan.postMessage(snapshot());
-    if (ROOM_ID) mqPub('hb', hbMsg());
+    if (ROOM_ID) { mqPub('hb', hbMsg()); mqPub('s', snapshot(), true); }   // свежее состояние каждые 2.5 с — оно же служит признаком «судья в сети»
     updateNetChip();
   } else {
     if (chan) { chan.postMessage({ cid: cid, t: 'ping' }); if (myNick) chan.postMessage({ cid: cid, t: 'hello', nick: myNick }); }
@@ -1130,7 +1130,9 @@ function onPeerMsg(c, d) {   // сообщения игроков (провер�
 
 function startClient() {
   net.mqAt = 0; net.sts = 0; net.t0 = Date.now(); net.gotState = false;
+  net.msgN = 0; net.lastT = '—'; net.lastAt = 0;
   mqStart(['s', 'e', 'hb', 'to/' + cid], (t, d) => {
+    net.msgN++; net.lastT = String(d.t); net.lastAt = Date.now(); if (d.t === 's') net.sAge = d.ts ? Date.now() - d.ts : null;
     if (d.t === 's') { net.gotState = true; if (d.ts && Math.abs(Date.now() - d.ts) < 20000) mqJudgeSeen(); }   // старое retained-состояние не доказывает, что судья онлайн, а свежее — доказывает
     else mqJudgeSeen();
     onPeerData(d);
